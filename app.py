@@ -1,13 +1,15 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
-from langchain_core.messages.chat import ChatMessage
 from dotenv import load_dotenv
 from langchain_teddynote.prompts import load_prompt
 import os
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
-import json
 
+from core import (
+    run_host_agent,
+    run_guest_agents,
+    run_writer_agent,
+    generate_clova_speech,
+)
 
 load_dotenv(dotenv_path=".env")
 
@@ -132,155 +134,79 @@ if st.button(
     if not query:
         st.error("뉴스 검색 키워드를 입력해주세요!")
     else:
-        # LLM 클라이언트 한 번만 정의
-        llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
-        output_parser = StrOutputParser()
-
         try:
-            # =================================================================
-            # STEP 1: Host-Agent가 게스트 프로필과 인터뷰 개요 생성
-            # =================================================================
+            llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
+
             with st.spinner(
-                "1/3단계: Host-Agent가 게스트를 섭외하고 질문지를 작성 중입니다... 섭외 전문가: 2명"
+                "1/3단계: Host-Agent가 게스트를 섭외하고 질문지를 작성 중입니다..."
             ):
-                host_prompt_template = """
-                당신은 "{topic}" 주제를 다루는 팟캐스트 쇼의 유능한 PD입니다. 이 주제에 대해 깊이 있는 대화를 나눌 가상의 게스트 2명을 섭외하고, 인터뷰 질문 4개로 구성된 인터뷰 개요를 작성해주세요.
-
-                # 출력 형식 (반드시 JSON 형식으로 응답해주세요):
-                {{
-                    "guests": [
-                        {{"name": "게스트1 이름", "description": "게스트1의 직업 및 전문 분야에 대한 상세 설명"}},
-                        {{"name": "게스트2 이름", "description": "게스트2의 직업 및 전문 분야에 대한 상세 설명"}}
-                    ],
-                    "interview_outline": [
-                        "첫 번째 질문",
-                        "두 번째 질문",
-                        "세 번째 질문",
-                        "네 번째 질문"
-                    ]
-                }}
-                """
-                host_chain = (
-                    ChatPromptTemplate.from_template(host_prompt_template)
-                    | llm
-                    | JsonOutputParser()
-                )
-                host_response = host_chain.invoke({"topic": query})
-                # host_response = json.loads(host_response_str)
-
+                host_response = run_host_agent(llm, query)
                 guests = host_response["guests"]
                 interview_outline = host_response["interview_outline"]
+                st.session_state.guests = guests  # 세션에 게스트 정보 저장
 
-                st.session_state.guests = guests
-
-            # =================================================================
-            # STEP 2: 각 Guest-Agent가 인터뷰 개요에 대해 답변 생성 (병렬 처리)
-            # =================================================================
             with st.spinner(
                 "2/3단계: Guest-Agents가 각자의 전문 분야에 맞춰 답변을 준비 중입니다..."
             ):
-                guest_answers = []
-                guest_prompt_template = """
-                당신은 {guest_description}인 "{guest_name}"입니다.
-                팟캐스트 주제인 "{topic}"에 대해 아래의 인터뷰 질문들에 답변해주세요.
-                당신의 전문성과 역할에 깊이 몰입하여, 심도 있고 독창적인 관점의 답변을 작성해주세요.
+                guest_answers = run_guest_agents(llm, query, guests, interview_outline)
 
-                # 인터뷰 질문:
-                {questions}
-
-                # 출력:
-                각 질문에 대한 답변을 명확하게 작성해주세요.
-                """
-                guest_chain = (
-                    ChatPromptTemplate.from_template(guest_prompt_template)
-                    | llm
-                    | output_parser
-                )
-
-                for guest in guests:
-                    # 논문에 따르면 각 게스트는 병렬적으로 답변을 생성합니다.
-                    answer = guest_chain.invoke(
-                        {
-                            "guest_name": guest["name"],
-                            "guest_description": guest["description"],
-                            "topic": query,
-                            "questions": "\\n- ".join(interview_outline),
-                        }
-                    )
-                    guest_answers.append({"name": guest["name"], "answer": answer})
-
-            # =================================================================
-            # STEP 3: Writer-Agent가 모든 정보를 종합하여 최종 대본 작성
-            # =================================================================
             with st.spinner(
                 "3/3단계: Writer-Agent가 수집된 답변들을 맛깔나는 대화 대본으로 다듬고 있습니다..."
             ):
-                writer_prompt_template = """
-                당신은 전문 팟캐스트 대본 작가입니다. 다음 정보를 바탕으로, 진행자와 게스트들이 자연스럽게 대화하는 최종 팟캐스트 대본을 작성해주세요.
-
-                - 팟캐스트 주제: {topic}
-                - 팟캐스트 분위기: {mood}
-                - 언어: {language}
-
-                - 진행자: Alex (호기심 많고 유쾌한 진행자)
-                - 게스트 정보: {guests_info}
-
-                - 게스트들이 제출한 답변 원본:
-                {guest_raw_answers}
-
-                # 지침:
-                - 게스트들이 제출한 답변 원본의 핵심 내용을 바탕으로, 서로 의견을 주고받는 자연스러운 대화 형식으로 재구성해주세요.
-                - 오프닝, 각 질문에 대한 대화, 클로징 멘트를 포함하여 완결성 있는 구조로 작성해주세요.
-                - 딱딱한 질의응답이 아닌, 실제 사람들이 나누는 대화처럼 생동감 있게 만들어주세요.
-                - {mood} 분위기를 전체 대본에 잘 녹여내 주세요.
-                - 최종 대본은 반드시 {language}로 작성해주세요.
-                """
-                writer_chain = (
-                    ChatPromptTemplate.from_template(writer_prompt_template)
-                    | llm
-                    | output_parser
-                )
-
-                final_script = writer_chain.invoke(
-                    {
-                        "topic": query,
-                        "mood": st.session_state.podcast_mood,
-                        "language": st.session_state.selected_language,
-                        "guests_info": json.dumps(guests, ensure_ascii=False),
-                        "guest_raw_answers": "\\n\\n".join(
-                            [
-                                f"--- {ga['name']}님의 답변 ---\\n{ga['answer']}"
-                                for ga in guest_answers
-                            ]
-                        ),
-                    }
+                final_script = run_writer_agent(
+                    llm,
+                    query,
+                    st.session_state.podcast_mood,
+                    st.session_state.selected_language,
+                    guests,
+                    guest_answers,
                 )
                 st.session_state.script = final_script
 
         except Exception as e:
             st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
 
-
-# --- 6. 생성된 팟캐스트 대본 출력 ---
-if st.session_state.script:
+# --- 6. 생성된 팟캐스트 대본 및 음성 생성 UI ---
+if st.session_state.get("script"):
     st.write("")
     st.subheader("🎉 생성된 팟캐스트 대본")
     st.markdown(st.session_state.script)
 
-    # 멘토의 조언: 대본이 생성된 후에야 음성 생성 버튼이 보이도록 하면 더 좋습니다.
     st.subheader("🎧 팟캐스트 음성 생성 (TTS)")
     if st.button("🎵 이 대본으로 음성 생성하기"):
-        # TODO: 여기에 Text-to-Speech(TTS) 로직을 추가합니다.
-        # 예를 들어 OpenAI의 TTS API나 gTTS 라이브러리를 사용할 수 있습니다.
-        with st.spinner("음성을 생성하는 중입니다..."):
-            # gTTS 예시 (프로토타입용)
-            # from gtts import gTTS
-            # import io
-            # tts = gTTS(text=st.session_state.script, lang=st.session_state.selected_language[:2].lower())
-            # fp = io.BytesIO()
-            # tts.write_to_fp(fp)
-            # st.audio(fp, format="audio/mp3")
-            st.success("음성 생성이 완료되었습니다!")
-            st.info(
-                "음성 생성 기능은 여기에 연결될 예정입니다. 지금은 대본 생성까지 완성되었습니다!"
-            )
+        with st.spinner(
+            "대본을 분석하고, 각 성우의 목소리로 음성을 만들고 있습니다..."
+        ):
+            guests = st.session_state.get("guests", [])
+            if not guests:
+                st.error("게스트 정보가 없습니다. 대본을 다시 생성해주세요.")
+            else:
+                voice_map = {
+                    "Alex": "nara",
+                    guests[0]["name"]: "dara",
+                    guests[1]["name"]: "jinho",
+                }
+                lines = st.session_state.script.strip().split("\n")
+                st.success("음성 생성이 완료되었습니다! 아래에서 확인해보세요. 👇")
+                for line in lines:
+                    line = line.strip()
+                    if not line or ":" not in line:
+                        continue
+
+                    speaker_name, speech_text = line.split(":", 1)
+                    speaker_name = speaker_name.strip()
+                    speech_text = speech_text.strip()
+
+                    if speaker_name in voice_map:
+                        st.write(
+                            f"**{speaker_name}** ({voice_map[speaker_name]} 목소리)"
+                        )
+                        audio_content, error_msg = generate_clova_speech(
+                            speech_text, speaker=voice_map[speaker_name]
+                        )
+                        if error_msg:
+                            st.error(error_msg)
+                        if audio_content:
+                            st.audio(audio_content, format="audio/mp3")
+                    else:
+                        st.write(line)
