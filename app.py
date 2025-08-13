@@ -1,11 +1,15 @@
 import streamlit as st
 from langchain_openai import ChatOpenAI
-from langchain_core.messages.chat import ChatMessage
 from dotenv import load_dotenv
 from langchain_teddynote.prompts import load_prompt
 import os
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
+
+from core import (
+    run_host_agent,
+    run_guest_agents,
+    run_writer_agent,
+    generate_clova_speech,
+)
 
 load_dotenv(dotenv_path=".env")
 
@@ -127,53 +131,82 @@ st.subheader("5. 팟캐스트 생성")
 if st.button(
     "✨ 팟캐스트 대본 생성 및 음성 만들기", use_container_width=True, type="primary"
 ):
-    # 🚨 여기서부터 들여쓰기 시작! (Tab 또는 스페이스 4칸)
     if not query:
         st.error("뉴스 검색 키워드를 입력해주세요!")
     else:
-        with st.spinner(
-            "AI가 열심히 팟캐스트 대본을 작성하고 있습니다... 잠시만 기다려주세요! 🤖"
-        ):
-            try:
-                prompt = load_prompt("prompts/podcast.yaml", encoding="utf-8")
+        try:
+            llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
 
-                llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
-                output_parser = StrOutputParser()
-                chain = prompt | llm | output_parser
+            with st.spinner(
+                "1/3단계: Host-Agent가 게스트를 섭외하고 질문지를 작성 중입니다..."
+            ):
+                host_response = run_host_agent(llm, query)
+                guests = host_response["guests"]
+                interview_outline = host_response["interview_outline"]
+                st.session_state.guests = guests  # 세션에 게스트 정보 저장
 
-                st.session_state.script = chain.invoke(
-                    {
-                        "category": st.session_state.selected_category,
-                        "query": query,
-                        "mood": st.session_state.podcast_mood,
-                        "language": st.session_state.selected_language,
-                    }
+            with st.spinner(
+                "2/3단계: Guest-Agents가 각자의 전문 분야에 맞춰 답변을 준비 중입니다..."
+            ):
+                guest_answers = run_guest_agents(llm, query, guests, interview_outline)
+
+            with st.spinner(
+                "3/3단계: Writer-Agent가 수집된 답변들을 맛깔나는 대화 대본으로 다듬고 있습니다..."
+            ):
+                final_script = run_writer_agent(
+                    llm,
+                    query,
+                    st.session_state.podcast_mood,
+                    st.session_state.selected_language,
+                    guests,
+                    guest_answers,
                 )
+                st.session_state.script = final_script
 
-            except Exception as e:
-                st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
+        except Exception as e:
+            st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
 
-
-# --- 6. 생성된 팟캐스트 대본 출력 ---
-if st.session_state.script:
+# --- 6. 생성된 팟캐스트 대본 및 음성 생성 UI ---
+if st.session_state.get("script"):
     st.write("")
     st.subheader("🎉 생성된 팟캐스트 대본")
     st.markdown(st.session_state.script)
 
-    # 멘토의 조언: 대본이 생성된 후에야 음성 생성 버튼이 보이도록 하면 더 좋습니다.
     st.subheader("🎧 팟캐스트 음성 생성 (TTS)")
     if st.button("🎵 이 대본으로 음성 생성하기"):
-        # TODO: 여기에 Text-to-Speech(TTS) 로직을 추가합니다.
-        # 예를 들어 OpenAI의 TTS API나 gTTS 라이브러리를 사용할 수 있습니다.
-        with st.spinner("음성을 생성하는 중입니다..."):
-            # gTTS 예시 (프로토타입용)
-            # from gtts import gTTS
-            # import io
-            # tts = gTTS(text=st.session_state.script, lang=st.session_state.selected_language[:2].lower())
-            # fp = io.BytesIO()
-            # tts.write_to_fp(fp)
-            # st.audio(fp, format="audio/mp3")
-            st.success("음성 생성이 완료되었습니다!")
-            st.info(
-                "음성 생성 기능은 여기에 연결될 예정입니다. 지금은 대본 생성까지 완성되었습니다!"
-            )
+        with st.spinner(
+            "대본을 분석하고, 각 성우의 목소리로 음성을 만들고 있습니다..."
+        ):
+            guests = st.session_state.get("guests", [])
+            if not guests:
+                st.error("게스트 정보가 없습니다. 대본을 다시 생성해주세요.")
+            else:
+                voice_map = {
+                    "Alex": "nara",
+                    guests[0]["name"]: "dara",
+                    guests[1]["name"]: "jinho",
+                }
+                lines = st.session_state.script.strip().split("\n")
+                st.success("음성 생성이 완료되었습니다! 아래에서 확인해보세요. 👇")
+                for line in lines:
+                    line = line.strip()
+                    if not line or ":" not in line:
+                        continue
+
+                    speaker_name, speech_text = line.split(":", 1)
+                    speaker_name = speaker_name.strip()
+                    speech_text = speech_text.strip()
+
+                    if speaker_name in voice_map:
+                        st.write(
+                            f"**{speaker_name}** ({voice_map[speaker_name]} 목소리)"
+                        )
+                        audio_content, error_msg = generate_clova_speech(
+                            speech_text, speaker=voice_map[speaker_name]
+                        )
+                        if error_msg:
+                            st.error(error_msg)
+                        if audio_content:
+                            st.audio(audio_content, format="audio/mp3")
+                    else:
+                        st.write(line)
