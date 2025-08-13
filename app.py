@@ -3,6 +3,10 @@ from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 from langchain_teddynote.prompts import load_prompt
 import os
+import re
+from pydub import AudioSegment
+from openai import OpenAI
+import io
 
 from core import (
     run_host_agent,
@@ -166,47 +170,98 @@ if st.button(
         except Exception as e:
             st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
 
+# app.py 파일에 추가될 내용
+
+st.write("")
 # --- 6. 생성된 팟캐스트 대본 및 음성 생성 UI ---
-if st.session_state.get("script"):
-    st.write("")
-    st.subheader("🎉 생성된 팟캐스트 대본")
-    st.markdown(st.session_state.script)
+st.subheader("6. 생성된 팟캐스트 대본 및 음성")
 
-    st.subheader("🎧 팟캐스트 음성 생성 (TTS)")
-    if st.button("🎵 이 대본으로 음성 생성하기"):
-        with st.spinner(
-            "대본을 분석하고, 각 성우의 목소리로 음성을 만들고 있습니다..."
-        ):
-            guests = st.session_state.get("guests", [])
-            if not guests:
-                st.error("게스트 정보가 없습니다. 대본을 다시 생성해주세요.")
-            else:
-                voice_map = {
-                    "Alex": "nara",
-                    guests[0]["name"]: "dara",
-                    guests[1]["name"]: "jinho",
-                }
-                lines = st.session_state.script.strip().split("\n")
-                st.success("음성 생성이 완료되었습니다! 아래에서 확인해보세요. 👇")
-                for line in lines:
-                    line = line.strip()
-                    if not line or ":" not in line:
-                        continue
+# st.session_state에 'script'가 생성되었다고 가정합니다.
+if "script" in st.session_state and st.session_state.script:
+    final_script = st.session_state.script
 
-                    speaker_name, speech_text = line.split(":", 1)
-                    speaker_name = speaker_name.strip()
-                    speech_text = speech_text.strip()
+    # 생성된 대본을 UI에 표시
+    st.text_area("생성된 팟캐스트 대본", final_script, height=300)
 
-                    if speaker_name in voice_map:
-                        st.write(
-                            f"**{speaker_name}** ({voice_map[speaker_name]} 목소리)"
-                        )
-                        audio_content, error_msg = generate_clova_speech(
-                            speech_text, speaker=voice_map[speaker_name]
-                        )
-                        if error_msg:
-                            st.error(error_msg)
-                        if audio_content:
-                            st.audio(audio_content, format="audio/mp3")
-                    else:
-                        st.write(line)
+    # --- 1단계 (준비): 대본에서 화자 목록 추출 ---
+    import re
+    from pydub import AudioSegment
+    from openai import OpenAI
+    import io
+
+    lines = re.split(r"\n(?=[\w\s]+:)", final_script.strip())
+    parsed_lines = []
+    for line in lines:
+        if ":" in line:
+            speaker, text = line.split(":", 1)
+            parsed_lines.append({"speaker": speaker.strip(), "text": text.strip()})
+
+    # 고유한 화자 목록을 순서대로 정렬하여 추출
+    speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+
+    # --- 2단계 (UI): 화자별 목소리 선택 UI 표시 ---
+    st.write("---")
+    st.subheader("🎤 화자별 목소리 설정")
+
+    # 사용 가능한 목소리 목록
+    available_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+
+    # 각 화자에 대한 목소리 선택 메뉴를 생성
+    # st.columns를 사용해 2열로 깔끔하게 배치
+    cols = st.columns(2)
+    for i, speaker in enumerate(speakers):
+        with cols[i % 2]:
+            st.selectbox(
+                label=f"**{speaker}**의 목소리 선택",
+                options=available_voices,
+                key=f"voice_select_{speaker}",  # 각 메뉴를 구분하기 위한 고유 키
+            )
+
+    st.write("---")
+
+    # --- 3단계 (실행): '음성 만들기' 버튼 및 로직 ---
+    if st.button(
+        "이 대본과 설정으로 팟캐스트 음성 만들기 🎧",
+        use_container_width=True,
+        type="primary",
+    ):
+        with st.spinner("🎧 팟캐스트 음성을 생성 중입니다... (1~2분 소요)"):
+            try:
+                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
+
+                # 사용자의 선택을 바탕으로 voice_map 생성
+                voice_map = {}
+                for speaker in speakers:
+                    voice_map[speaker] = st.session_state[f"voice_select_{speaker}"]
+
+                # 대사별 개별 음성 파일 생성
+                audio_segments = []
+                for line in parsed_lines:
+                    speaker = line["speaker"]
+                    text = line["text"]
+                    voice = voice_map.get(speaker, "alloy")  # 만약의 경우 기본값
+
+                    response = client.audio.speech.create(
+                        model="tts-1", voice=voice, input=text
+                    )
+
+                    audio_bytes = io.BytesIO(response.content)
+                    segment = AudioSegment.from_file(audio_bytes, format="mp3")
+                    audio_segments.append(segment)
+
+                # 음성 파일 병합
+                pause = AudioSegment.silent(duration=500)
+                final_podcast = AudioSegment.empty()
+                for segment in audio_segments:
+                    final_podcast += segment + pause
+
+                # 최종 파일 출력
+                final_podcast_io = io.BytesIO()
+                final_podcast.export(final_podcast_io, format="mp3")
+                final_podcast_io.seek(0)
+
+                st.audio(final_podcast_io, format="audio/mp3")
+                st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
+
+            except Exception as e:
+                st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
