@@ -4,6 +4,8 @@ from langchain_core.messages.chat import ChatMessage
 from dotenv import load_dotenv
 from langchain_teddynote.prompts import load_prompt
 import os
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv(dotenv_path=".env")
 
@@ -14,13 +16,15 @@ st.title("🎤 AI 뉴스 팟캐스트 스튜디오")
 st.markdown(
     "관심 있는 뉴스 기사를 검색하고, AI가 자동으로 대본을 작성하여 팟캐스트 음성까지 생성해 드립니다."
 )
-
-# 세션 상태 초기화
+# --- 세션 상태 초기화 ---
+# 대본을 저장할 세션 상태 추가
+if "script" not in st.session_state:
+    st.session_state.script = ""
 if "podcast_mood" not in st.session_state:
-    st.session_state.podcast_mood = "차분한"  # 팟캐스트 분위기 기본값 설정
+    st.session_state.podcast_mood = "차분한"
 if "selected_category" not in st.session_state:
-    st.session_state.selected_category = "전체"  # 뉴스 카테고리 기본값 설정
-if "selected_language" not in st.session_state:  # 새로운 언어 선택 기본값 설정
+    st.session_state.selected_category = "전체"
+if "selected_language" not in st.session_state:
     st.session_state.selected_language = "한국어"
 
 
@@ -60,6 +64,7 @@ for i, (cat_key, cat_label) in enumerate(category_options.items()):
 
 # 사이드바 생성
 
+# --- 2. 뉴스 검색 조건 입력 섹션 ---
 st.write("")
 st.subheader("2. 뉴스 검색 조건 입력")
 query = st.text_input(
@@ -94,6 +99,7 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
             type=button_type,
         ):
             st.session_state.podcast_mood = mood_key
+
 # --- 4. 팟캐스트 언어 선택 섹션 (새로 추가) ---
 st.write("")
 st.subheader("4. 팟캐스트 언어 선택")
@@ -118,32 +124,56 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
 st.write("")
 st.subheader("5. 팟캐스트 생성")
 
-generate_button = st.button(
-    "✨ 팟캐스트 대본 생성 및 음성 만들기", use_container_width=True
-)
+if st.button(
+    "✨ 팟캐스트 대본 생성 및 음성 만들기", use_container_width=True, type="primary"
+):
+    # 🚨 여기서부터 들여쓰기 시작! (Tab 또는 스페이스 4칸)
+    if not query:
+        st.error("뉴스 검색 키워드를 입력해주세요!")
+    else:
+        with st.spinner(
+            "AI가 열심히 팟캐스트 대본을 작성하고 있습니다... 잠시만 기다려주세요! 🤖"
+        ):
+            try:
+                prompt = load_prompt("prompts/podcast.yaml", encoding="utf-8")
+
+                llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
+                output_parser = StrOutputParser()
+                chain = prompt | llm | output_parser
+
+                st.session_state.script = chain.invoke(
+                    {
+                        "category": st.session_state.selected_category,
+                        "query": query,
+                        "mood": st.session_state.podcast_mood,
+                        "language": st.session_state.selected_language,
+                    }
+                )
+
+            except Exception as e:
+                st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
 
 
-# 이전 대화를 출력
-def print_messages():
-    """대화기록을 출력하는 함수"""
-    for message in st.session_state["messages"]:
-        st.chat_message(message.role).write(message.content)
+# --- 6. 생성된 팟캐스트 대본 출력 ---
+if st.session_state.script:
+    st.write("")
+    st.subheader("🎉 생성된 팟캐스트 대본")
+    st.markdown(st.session_state.script)
 
-
-# 새로운 메시지를 추가
-def add_message(role, message):
-    """대화기록을 추가하는 함수"""
-    st.session_state["messages"].append(ChatMessage(role=role, content=message))
-
-    # 체인 생성
-    prompt = load_prompt("prompts/podcast.yaml", encoding="utf-8")
-
-    # LLM 모델
-    llm = ChatOpenAI(model_name="gpt-4o", temperature=0.0)
-
-    # 출력 파서
-    output_parser = StrOutputParser()
-
-    # 체인 생성
-    chain = prompt | llm | output_parser
-    return chain
+    # 멘토의 조언: 대본이 생성된 후에야 음성 생성 버튼이 보이도록 하면 더 좋습니다.
+    st.subheader("🎧 팟캐스트 음성 생성 (TTS)")
+    if st.button("🎵 이 대본으로 음성 생성하기"):
+        # TODO: 여기에 Text-to-Speech(TTS) 로직을 추가합니다.
+        # 예를 들어 OpenAI의 TTS API나 gTTS 라이브러리를 사용할 수 있습니다.
+        with st.spinner("음성을 생성하는 중입니다..."):
+            # gTTS 예시 (프로토타입용)
+            # from gtts import gTTS
+            # import io
+            # tts = gTTS(text=st.session_state.script, lang=st.session_state.selected_language[:2].lower())
+            # fp = io.BytesIO()
+            # tts.write_to_fp(fp)
+            # st.audio(fp, format="audio/mp3")
+            st.success("음성 생성이 완료되었습니다!")
+            st.info(
+                "음성 생성 기능은 여기에 연결될 예정입니다. 지금은 대본 생성까지 완성되었습니다!"
+            )
