@@ -263,5 +263,13 @@ if "script" in st.session_state and st.session_state.script:
                 st.audio(final_podcast_io, format="audio/mp3")
                 st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
 
+                # ▼▼▼ 다운로드 버튼 추가! ▼▼▼
+                st.download_button(
+                    label="🎧 MP3 파일 다운로드",
+                    data=final_podcast_io,
+                    file_name=f"podcast.mp3",
+                    mime="audio/mpeg",
+                )
+
             except Exception as e:
                 st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
