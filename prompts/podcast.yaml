@@ -1,4 +1,5 @@
 # prompts/podcast.yaml
+_type: prompt # 이 한 줄을 추가해주세요.
 
 input_variables:
   - category
