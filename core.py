@@ -6,14 +6,14 @@ from langchain_core.prompts import load_prompt
 import streamlit as st
 
 
-def run_host_agent(llm, topic):
+def run_host_agent(llm, topic, content):
     """Host-Agent를 실행하여 게스트 정보와 인터뷰 개요를 반환"""
     prompt = load_prompt("./prompts/host_agent.yaml", encoding="utf-8")
     host_chain = prompt | llm | JsonOutputParser()
-    return host_chain.invoke({"topic": topic})
+    return host_chain.invoke({"topic": topic, "content": content})
 
 
-def run_guest_agents(llm, topic, guests, interview_outline):
+def run_guest_agents(llm, topic, guests, interview_outline, content):
     """Guest-Agent들을 실행하여 각 게스트의 답변을 반환"""
     guest_answers = []
     prompt = load_prompt("./prompts/guest_agent.yaml", encoding="utf-8")
@@ -25,6 +25,7 @@ def run_guest_agents(llm, topic, guests, interview_outline):
                 "guest_description": guest["description"],
                 "topic": topic,
                 "questions": "\n- ".join(interview_outline),
+                "content": content
             }
         )
         guest_answers.append({"name": guest["name"], "answer": answer})
