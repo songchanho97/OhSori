@@ -136,29 +136,46 @@ def assign_voices(speakers, language):
     if language == "영어":
         available_voices = ["clara", "danna", "djoey", "matt"]
         host_voice = "matt"
+    elif language == "일본어":  # ▼▼▼ 일본어 분기 추가 ▼▼▼
+        available_voices = [
+            "dayumu",
+            "ddaiki",
+            "deriko",
+            "dhajime",
+            "dmio",
+            "dnaomi",
+            "driko",
+        ]
+        host_voice = "ddaiki"  # 일본어 진행자 목소리 (예시)
     else:  # 기본값: 한국어
         available_voices = [
-            "nara",
             "dara",
             "jinho",
             "nhajun",
             "nsujin",
+            "nsiyun",
             "njihun",
         ]
         host_voice = "nara"
 
     voice_map = {}
-    host_speakers = [s for s in speakers if "Host" in s or "진행자" in s or "Alex" in s]
+    host_keywords = ["Host", "진행자", "Alex"]
+    host_speakers = [s for s in speakers if s.strip("* ") in host_keywords]
     guest_speakers = [s for s in speakers if s not in host_speakers]
 
     for host in host_speakers:
         voice_map[host] = host_voice
 
     guest_voice_pool = [v for v in available_voices if v != host_voice]
+    if not guest_voice_pool:
+        guest_voice_pool = available_voices
+
     if len(guest_speakers) > len(guest_voice_pool):
         selected_guest_voices = random.choices(guest_voice_pool, k=len(guest_speakers))
-    else:
+    elif guest_speakers:
         selected_guest_voices = random.sample(guest_voice_pool, len(guest_speakers))
+    else:
+        selected_guest_voices = []
 
     for guest, voice in zip(guest_speakers, selected_guest_voices):
         voice_map[guest] = voice
