@@ -14,6 +14,7 @@ from core import (
     run_guest_agents,
     run_writer_agent,
     generate_clova_speech,
+    clean_text_for_tts,
 )
 
 load_dotenv(dotenv_path=".env")
@@ -251,7 +252,7 @@ if "script" in st.session_state and st.session_state.script:
                 audio_segments = []
                 for line in parsed_lines:
                     speaker = line["speaker"]
-                    full_text = line["text"]
+                    full_text = clean_text_for_tts(line["text"])
                     clova_speaker = voice_map.get(speaker, "nara")
 
                     if not full_text.strip():
