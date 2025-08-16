@@ -3,14 +3,20 @@ from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 import os
 import re
-import io
+
 from pydub import AudioSegment
+from openai import OpenAI
+import io
+import re
+import random
+
 
 from core import (
     run_host_agent,
     run_guest_agents,
     run_writer_agent,
     generate_clova_speech,
+    clean_text_for_tts,
 )
 
 load_dotenv(dotenv_path=".env")
@@ -96,7 +102,10 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.podcast_mood = mood_key
+            if st.session_state.podcast_mood != mood_key:
+                st.session_state.podcast_mood = mood_key
+                st.rerun()
+
 
 # --- 4. 팟캐스트 언어 선택 섹션 ---
 st.write("")

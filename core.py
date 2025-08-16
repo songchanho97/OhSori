@@ -4,6 +4,27 @@ import requests
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import load_prompt
 import streamlit as st
+import re
+
+
+def clean_text_for_tts(script):
+    """
+    TTS 음성 합성을 위해 텍스트를 전처리하는 함수.
+    '**이름**', '[질문...]' 등 발음에는 불필요한 요소를 제거합니다.
+    ('#'으로 시작하는 줄은 이제 제거하지 않습니다.)
+    """
+    # 1단계: '#'으로 시작하는 줄 제거 로직을 사용자의 요청에 따라 주석 처리하여 비활성화합니다.
+    # cleaned_script = re.sub(r"^#.*\n?", "", script, flags=re.MULTILINE)
+
+    # 2단계: 나머지 불필요한 패턴들을 제거
+    # 이제 원본 'script'에 직접 정제 로직을 적용합니다.
+    cleaned_script = re.sub(
+        r"\*\*.*?\*\*|\[질문\s*\d+\s*:.*?\]\n?|[*\[\]]|클로징|오프닝",
+        "",
+        script,  # 원본 스크립트를 직접 사용
+    )
+
+    return cleaned_script.strip()  # 최종적으로 시작과 끝의 공백을 제거합니다.
 
 
 def run_host_agent(llm, topic):
