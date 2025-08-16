@@ -103,9 +103,11 @@ def generate_clova_speech(text, speaker="nara", speed=0, pitch=0):
 def parse_script(script_text):
     """대본 텍스트를 파싱하여 화자별 대사 리스트와 전체 화자 리스트를 반환합니다."""
     try:
-        # **...:** 형식으로 된 화자를 모두 인식하도록 수정
-        pattern = re.compile(r"\*\*(.*?):\*\*\s*(.*)")
+        # ▼▼▼ 콜론(:)이 ** 안팎 어디에 있든 처리하도록 정규표현식 수정 ▼▼▼
+        # **이름** 또는 **이름:** 뒤에 콜론이 오는 경우 모두 처리
+        pattern = re.compile(r"\*\*([^:]+?)\**:\s*(.*)")
         matches = pattern.findall(script_text)
+
         parsed_lines = [
             {"speaker": speaker.strip(), "text": text.strip()}
             for speaker, text in matches
@@ -113,7 +115,8 @@ def parse_script(script_text):
 
         if not parsed_lines:
             # 기본 형식(:)으로 재시도
-            lines = re.split(r"\n(?=[\w\s]+:)", script_text.strip())
+            lines = re.split(r"\n(?=[\w\s.-]+:)", script_text.strip())
+            parsed_lines = []
             for line in lines:
                 if ":" in line:
                     speaker, text = line.split(":", 1)
