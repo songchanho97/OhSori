@@ -97,7 +97,10 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
 
 # --- 4. 팟캐스트 언어 선택 섹션 ---
 st.subheader("4. 팟캐스트 언어 선택")
-language_options = {"한국어": "🇰🇷 한국어", "영어": "🇺🇸 영어"}
+
+# ▼▼▼ 일본어 옵션 추가 ▼▼▼
+language_options = {"한국어": "🇰🇷 한국어", "영어": "🇺🇸 영어", "일본어": "🇯🇵 일본어"}
+
 cols_lang = st.columns(len(language_options))
 for i, (lang_key, lang_label) in enumerate(language_options.items()):
     with cols_lang[i]:
