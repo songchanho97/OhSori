@@ -149,25 +149,31 @@ if st.button(
     if not query:
         st.error("뉴스 검색 키워드를 입력해주세요!")
     else:
+        # 진행상태 표시 위젯들
+        progress = st.progress(0)          # 진행률 바
+        status   = st.empty()               # 단계별 상태 메시지
+
         try:
             llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
 
-            with st.spinner(
-                "1/3단계: Host-Agent가 게스트를 섭외하고 질문지를 작성 중입니다..."
-            ):
+            # 1단계: Host-Agent
+            status.info("1/3단계: Host-Agent가 게스트를 섭외하고 질문지를 작성 중입니다...")
+            with st.spinner("Host-Agent 실행 중..."):
                 host_response = run_host_agent(llm, query)
                 guests = host_response["guests"]
                 interview_outline = host_response["interview_outline"]
-                st.session_state.guests = guests  # 세션에 게스트 정보 저장
+                st.session_state.guests = guests
+            progress.progress(33)
 
-            with st.spinner(
-                "2/3단계: Guest-Agents가 각자의 전문 분야에 맞춰 답변을 준비 중입니다..."
-            ):
+            # 2단계: Guest-Agents
+            status.info("2/3단계: Guest-Agents가 각자의 전문 분야에 맞춰 답변을 준비 중입니다...")
+            with st.spinner("Guest-Agents 실행 중..."):
                 guest_answers = run_guest_agents(llm, query, guests, interview_outline)
+            progress.progress(66)
 
-            with st.spinner(
-                "3/3단계: Writer-Agent가 수집된 답변들을 맛깔나는 대화 대본으로 다듬고 있습니다..."
-            ):
+            # 3단계: Writer-Agent
+            status.info("3/3단계: Writer-Agent가 답변을 대화 대본으로 다듬는 중입니다...")
+            with st.spinner("Writer-Agent 실행 중..."):
                 final_script = run_writer_agent(
                     llm,
                     query,
@@ -177,9 +183,14 @@ if st.button(
                     guest_answers,
                 )
                 st.session_state.script = final_script
+            progress.progress(100)
+
+            status.success("✅ 대본 생성 완료! 아래에서 대본을 확인하고 음성을 만들어 보세요.")
 
         except Exception as e:
-            st.error(f"대본 생성 중 오류가 발생했습니다: {e}")
+            status.error("❌ 대본 생성 중 오류가 발생했습니다.")
+            st.error(f"에러 상세: {e}")
+            progress.progress(0)
 
 # app.py 파일에 추가될 내용
 
