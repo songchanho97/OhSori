@@ -203,7 +203,12 @@ if "script" in st.session_state and st.session_state.script:
             parsed_lines.append({"speaker": speaker.strip(), "text": text.strip()})
 
     # 고유한 화자 목록을 순서대로 정렬하여 추출
-    speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+    # Host-Agent에서 뽑은 화자 명단을 우선 사용
+    if "guests" in st.session_state:
+        speakers = ["Host"] + [g["name"] for g in st.session_state.guests]
+    else:
+        speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+
 
     # --- 2단계 (UI): 화자별 목소리 선택 UI 표시 ---
     st.write("---")
