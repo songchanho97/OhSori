@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from langchain_teddynote.prompts import load_prompt
 import os
 import re
-
 from pydub import AudioSegment
 from openai import OpenAI
 import io
@@ -113,7 +112,10 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.podcast_mood = mood_key
+             if st.session_state.podcast_mood != mood_key:
+                st.session_state.podcast_mood = mood_key
+                st.rerun()
+           
 
 # --- 4. 팟캐스트 언어 선택 섹션 (새로 추가) ---
 st.write("")
@@ -133,7 +135,9 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.selected_language = lang_key
+            if st.session_state.selected_language != lang_key:
+                st.session_state.selected_language = lang_key
+                st.rerun()
 
 # --- 5. 팟캐스트 생성 버튼 섹션 ---
 st.write("")
@@ -199,7 +203,12 @@ if "script" in st.session_state and st.session_state.script:
             parsed_lines.append({"speaker": speaker.strip(), "text": text.strip()})
 
     # 고유한 화자 목록을 순서대로 정렬하여 추출
-    speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+    # Host-Agent에서 뽑은 화자 명단을 우선 사용
+    if "guests" in st.session_state:
+        speakers = ["Host"] + [g["name"] for g in st.session_state.guests]
+    else:
+        speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+
 
     # --- 2단계 (UI): 화자별 목소리 선택 UI 표시 ---
     st.write("---")
@@ -285,6 +294,7 @@ if "script" in st.session_state and st.session_state.script:
                         segment = AudioSegment.from_file(audio_bytes, format="mp3")
                         audio_segments.append(segment)
 
+                # ======================================================================
                 # ▼▼▼ 2. 모든 for 루프가 끝난 후에, 딱 한 번만 음성 병합 및 출력! ▼▼▼
 
                 # 음성 파일 병합
@@ -308,6 +318,7 @@ if "script" in st.session_state and st.session_state.script:
                     mime="audio/mpeg",
                 )
                 # ▲▲▲ 이 로직이 루프 바깥으로 이동했습니다 ▲▲▲
+                # ======================================================================
 
             except Exception as e:
                 st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
