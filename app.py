@@ -135,7 +135,9 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.selected_language = lang_key
+            if st.session_state.selected_language != lang_key:
+                st.session_state.selected_language = lang_key
+                st.rerun()
 
 # --- 5. 팟캐스트 생성 버튼 섹션 ---
 st.write("")
