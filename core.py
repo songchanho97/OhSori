@@ -10,24 +10,20 @@ from pydub import AudioSegment
 import io
 
 
-def clean_text_for_tts(script):
+def clean_text_for_tts(text):
     """
-    TTS 음성 합성을 위해 텍스트를 전처리하는 함수.
-    '**이름**', '[질문...]' 등 발음에는 불필요한 요소를 제거합니다.
-    ('#'으로 시작하는 줄은 이제 제거하지 않습니다.)
+    TTS 음성 합성을 위해 대사 텍스트를 최종 전처리하는 함수.
+    - '#', '*', '[]' 등 발음이 불필요한 특수기호를 제거합니다.
+    - (대사 안에 있는 사람 이름은 제거하지 않습니다.)
     """
-    # 1단계: '#'으로 시작하는 줄 제거 로직을 사용자의 요청에 따라 주석 처리하여 비활성화합니다.
-    # cleaned_script = re.sub(r"^#.*\n?", "", script, flags=re.MULTILINE)
+    # 불필요한 특수 기호 및 단어를 제거합니다.
+    # 콜론(:)은 문장 중간에 나올 수 있으므로 제거 목록에서 제외하는 것이 좋습니다.
+    cleaned_text = re.sub(r"[#*\[\]]|클로징|오프닝", "", text)
 
-    # 2단계: 나머지 불필요한 패턴들을 제거
-    # 이제 원본 'script'에 직접 정제 로직을 적용합니다.
-    cleaned_script = re.sub(
-        r"\*\*.*?\*\*|\[질문\s*\d+\s*:.*?\]\n?|[*\[\]]|클로징|오프닝",
-        "",
-        script,  # 원본 스크립트를 직접 사용
-    )
+    # 여러 공백을 하나로 축소하고 양 끝 공백을 최종적으로 제거합니다.
+    cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
 
-    return cleaned_script.strip()  # 최종적으로 시작과 끝의 공백을 제거합니다.
+    return cleaned_text
 
 
 def run_host_agent(llm, topic):
@@ -107,16 +103,16 @@ def generate_clova_speech(text, speaker="nara", speed=0, pitch=0):
 def parse_script(script_text):
     """대본 텍스트를 파싱하여 화자별 대사 리스트와 전체 화자 리스트를 반환합니다."""
     try:
-        # Markdown 형식(**이름:**) 우선 파싱
-        pattern = re.compile(r"\*\*([A-Za-z가-힣\s]+):\*\*\s*(.*)")
+        # **...:** 형식으로 된 화자를 모두 인식하도록 수정
+        pattern = re.compile(r"\*\*(.*?):\*\*\s*(.*)")
         matches = pattern.findall(script_text)
         parsed_lines = [
             {"speaker": speaker.strip(), "text": text.strip()}
             for speaker, text in matches
         ]
 
-        # 파싱 실패 시, 기본 형식(:)으로 재시도
         if not parsed_lines:
+            # 기본 형식(:)으로 재시도
             lines = re.split(r"\n(?=[\w\s]+:)", script_text.strip())
             for line in lines:
                 if ":" in line:
@@ -144,7 +140,6 @@ def assign_voices(speakers, language):
             "jinho",
             "nhajun",
             "nsujin",
-            "nsiyun",
             "njihun",
         ]
         host_voice = "nara"
@@ -168,28 +163,34 @@ def assign_voices(speakers, language):
     return voice_map
 
 
-def generate_audio_segments(parsed_lines, voice_map):
+def generate_audio_segments(parsed_lines, voice_map, speakers):
     """파싱된 대본과 목소리 맵을 기반으로 음성 조각 리스트를 생성합니다."""
     audio_segments = []
     for line in parsed_lines:
         speaker = line["speaker"]
-        text = line["text"].strip()
-        clova_speaker = voice_map.get(speaker, "nara")
 
-        if not text:
+        # ▼▼▼ 텍스트 정제 로직을 여기서 호출합니다 ▼▼▼
+        cleaned_text = clean_text_for_tts(line["text"])
+
+        # 정제 후 텍스트가 비어있으면 건너뜁니다.
+        if not cleaned_text:
             continue
 
-        text_chunks = [text[i : i + 1000] for i in range(0, len(text), 1000)]
+        clova_speaker = voice_map.get(speaker, "nara")
+
+        text_chunks = [
+            cleaned_text[i : i + 1000] for i in range(0, len(cleaned_text), 1000)
+        ]
         for chunk in text_chunks:
             audio_content, error = generate_clova_speech(
                 text=chunk, speaker=clova_speaker
             )
             if error:
-                # Streamlit UI가 없는 core.py에서는 에러를 반환하거나 로깅 처리합니다.
                 raise Exception(f"'{speaker}'의 음성 생성 중 오류: {error}")
 
             segment = AudioSegment.from_file(io.BytesIO(audio_content), format="mp3")
             audio_segments.append(segment)
+
     return audio_segments
 
 

@@ -5,6 +5,7 @@ import os
 
 # core.py에서 모든 함수를 가져옵니다.
 from core import (
+    clean_text_for_tts,
     run_host_agent,
     run_guest_agents,
     run_writer_agent,
@@ -157,26 +158,38 @@ if st.session_state.script:
                 # 1. 스크립트 파싱
                 parsed_lines, speakers = parse_script(st.session_state.script)
 
-                # 2. 목소리 배정
-                voice_map = assign_voices(speakers, st.session_state.selected_language)
-                st.write("#### 🎤 목소리 배정 결과")
-                for speaker, voice in voice_map.items():
-                    st.write(f"**{speaker}** → **{voice}**")
+                if not speakers:
+                    st.error(
+                        "대본에서 화자를 찾을 수 없습니다. 대본 형식을 확인해주세요. (예: **이름:**)"
+                    )
+                else:
+                    # 2. 목소리 배정
+                    voice_map = assign_voices(
+                        speakers, st.session_state.selected_language
+                    )
+                    st.write("#### 🎤 목소리 배정 결과")
+                    for speaker, voice in voice_map.items():
+                        st.write(f"**{speaker}** → **{voice}**")
 
-                # 3. 음성 조각 생성
-                audio_segments = generate_audio_segments(parsed_lines, voice_map)
+                    # 3. 모든 대사에 대한 음성 조각 생성
+                    st.write("#### 🎧 음성 조각 생성 중...")
+                    audio_segments = generate_audio_segments(
+                        parsed_lines, voice_map, speakers
+                    )
+                    st.write(f"총 {len(audio_segments)}개의 음성 조각을 생성했습니다.")
 
-                # 4. BGM과 함께 최종 팟캐스트 오디오 처리
-                final_podcast_io = process_podcast_audio(audio_segments, "mp3.mp3")
+                    # 4. BGM과 함께 최종 팟캐스트 오디오 처리
+                    st.write("#### 🎶 BGM 편집 및 최종 결합 중...")
+                    final_podcast_io = process_podcast_audio(audio_segments, "mp3.mp3")
 
-                # 5. 결과 출력
-                st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
-                st.audio(final_podcast_io, format="audio/mp3")
-                st.download_button(
-                    label="📥 MP3 파일 다운로드",
-                    data=final_podcast_io,
-                    file_name="podcast_with_intro.mp3",
-                    mime="audio/mpeg",
-                )
+                    # 5. 결과 출력
+                    st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
+                    st.audio(final_podcast_io, format="audio/mp3")
+                    st.download_button(
+                        label="📥 MP3 파일 다운로드",
+                        data=final_podcast_io,
+                        file_name="podcast_with_intro.mp3",
+                        mime="audio/mpeg",
+                    )
             except Exception as e:
                 st.error(f"음성 생성 또는 후반 작업 중 오류: {e}")
