@@ -13,7 +13,7 @@ def run_host_agent(llm, topic, content):
     return host_chain.invoke({"topic": topic, "content": content})
 
 
-def run_guest_agents(llm, topic, guests, interview_outline, content):
+def run_guest_agents(llm, topic, guests, interview_outline, content, mode):
     """Guest-Agent들을 실행하여 각 게스트의 답변을 반환"""
     guest_answers = []
     prompt = load_prompt("./prompts/guest_agent.yaml", encoding="utf-8")
@@ -25,7 +25,8 @@ def run_guest_agents(llm, topic, guests, interview_outline, content):
                 "guest_description": guest["description"],
                 "topic": topic,
                 "questions": "\n- ".join(interview_outline),
-                "content": content
+                "content": content,
+                "mode": mode
             }
         )
         guest_answers.append({"name": guest["name"], "answer": answer})
