@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from langchain_teddynote.prompts import load_prompt
 import os
 import re
-
 from pydub import AudioSegment
 from openai import OpenAI
 import io
@@ -113,7 +112,10 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.podcast_mood = mood_key
+             if st.session_state.podcast_mood != mood_key:
+                st.session_state.podcast_mood = mood_key
+                st.rerun()
+           
 
 # --- 4. 팟캐스트 언어 선택 섹션 (새로 추가) ---
 st.write("")
@@ -285,6 +287,7 @@ if "script" in st.session_state and st.session_state.script:
                         segment = AudioSegment.from_file(audio_bytes, format="mp3")
                         audio_segments.append(segment)
 
+                # ======================================================================
                 # ▼▼▼ 2. 모든 for 루프가 끝난 후에, 딱 한 번만 음성 병합 및 출력! ▼▼▼
 
                 # 음성 파일 병합
@@ -308,6 +311,7 @@ if "script" in st.session_state and st.session_state.script:
                     mime="audio/mpeg",
                 )
                 # ▲▲▲ 이 로직이 루프 바깥으로 이동했습니다 ▲▲▲
+                # ======================================================================
 
             except Exception as e:
                 st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
