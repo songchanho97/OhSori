@@ -52,23 +52,28 @@ category_options = {
     "스포츠": "⚽ 스포츠",
     "세계": "🌍 세계",
 }
+
 num_cols_per_row = 4
 cols = st.columns(num_cols_per_row)
 col_idx = 0
 
 for i, (cat_key, cat_label) in enumerate(category_options.items()):
     with cols[col_idx]:
-        # 선택된 카테고리 버튼은 primary type으로 표시
         button_type = (
             "primary" if st.session_state.selected_category == cat_key else "secondary"
         )
+
         if st.button(
-            cat_label,  # 이모지와 텍스트를 직접 전달
+            cat_label,
             key=f"cat_btn_{cat_key}",
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.selected_category = cat_key  # 클릭 시 세션 상태 업데이트
+
+            if st.session_state.selected_category != cat_key:
+                st.session_state.selected_category = cat_key
+                # 세션 상태를 업데이트한 후 앱을 다시 실행하여 UI를 즉시 갱신
+                st.rerun()
     col_idx = (col_idx + 1) % num_cols_per_row
 
 # 사이드바 생성
