@@ -1,9 +1,9 @@
 import os
 import json
 import requests
-from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import JsonOutputParser, StrOutputParser
 from langchain_core.prompts import load_prompt
+import streamlit as st
 
 
 def run_host_agent(llm, topic):
@@ -53,8 +53,10 @@ def run_writer_agent(llm, topic, mood, language, guests, guest_answers):
 
 def generate_clova_speech(text, speaker="nara", speed=0, pitch=0):
     """Naver CLOVA Voice API를 호출하여 음성을 생성하는 함수"""
-    client_id = os.getenv("NCP_CLIENT_ID")
-    client_secret = os.getenv("NCP_CLIENT_SECRET")
+    client_id = st.secrets.get("NCP_CLIENT_ID") or os.getenv("NCP_CLIENT_ID")
+    client_secret = st.secrets.get("NCP_CLIENT_SECRET") or os.getenv(
+        "NCP_CLIENT_SECRET"
+    )
     if not client_id or not client_secret:
         return None, "CLOVA Voice API 인증 정보를 .env 파일에 설정해주세요."
 
