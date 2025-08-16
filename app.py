@@ -98,9 +98,7 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
 # --- 4. 팟캐스트 언어 선택 섹션 ---
 st.subheader("4. 팟캐스트 언어 선택")
 
-# ▼▼▼ 일본어 옵션 추가 ▼▼▼
 language_options = {"한국어": "🇰🇷 한국어", "영어": "🇺🇸 영어", "일본어": "🇯🇵 일본어"}
-
 cols_lang = st.columns(len(language_options))
 for i, (lang_key, lang_label) in enumerate(language_options.items()):
     with cols_lang[i]:
@@ -114,7 +112,11 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
                 else "secondary"
             ),
         ):
-            st.session_state.selected_language = lang_key
+            # ▼▼▼ 상태 변경 직후 st.rerun() 호출 추가 ▼▼▼
+            # 현재 선택된 언어와 다른 버튼을 눌렀을 경우에만 실행
+            if st.session_state.selected_language != lang_key:
+                st.session_state.selected_language = lang_key
+                st.rerun()  # 이 코드가 즉시 화면을 새로고침합니다.
 
 # --- 5. 대본 생성 버튼 섹션 ---
 st.subheader("5. 팟캐스트 생성")
