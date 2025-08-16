@@ -7,6 +7,7 @@ import re
 from pydub import AudioSegment
 from openai import OpenAI
 import io
+import re
 
 from core import (
     run_host_agent,
@@ -51,23 +52,28 @@ category_options = {
     "스포츠": "⚽ 스포츠",
     "세계": "🌍 세계",
 }
+
 num_cols_per_row = 4
 cols = st.columns(num_cols_per_row)
 col_idx = 0
 
 for i, (cat_key, cat_label) in enumerate(category_options.items()):
     with cols[col_idx]:
-        # 선택된 카테고리 버튼은 primary type으로 표시
         button_type = (
             "primary" if st.session_state.selected_category == cat_key else "secondary"
         )
+
         if st.button(
-            cat_label,  # 이모지와 텍스트를 직접 전달
+            cat_label,
             key=f"cat_btn_{cat_key}",
             use_container_width=True,
             type=button_type,
         ):
-            st.session_state.selected_category = cat_key  # 클릭 시 세션 상태 업데이트
+
+            if st.session_state.selected_category != cat_key:
+                st.session_state.selected_category = cat_key
+                # 세션 상태를 업데이트한 후 앱을 다시 실행하여 UI를 즉시 갱신
+                st.rerun()
     col_idx = (col_idx + 1) % num_cols_per_row
 
 # 사이드바 생성
@@ -184,11 +190,6 @@ if "script" in st.session_state and st.session_state.script:
     st.text_area("생성된 팟캐스트 대본", final_script, height=300)
 
     # --- 1단계 (준비): 대본에서 화자 목록 추출 ---
-    import re
-    from pydub import AudioSegment
-    from openai import OpenAI
-    import io
-
     lines = re.split(r"\n(?=[\w\s]+:)", final_script.strip())
     parsed_lines = []
     for line in lines:
@@ -204,7 +205,15 @@ if "script" in st.session_state and st.session_state.script:
     st.subheader("🎤 화자별 목소리 설정")
 
     # 사용 가능한 목소리 목록
-    available_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+    available_voices = [
+        "nara",
+        "dara",
+        "jinho",
+        "nhajun",
+        "nsujin",
+        "nsiyun",
+        "njihun",
+    ]  # 예시 목록
 
     # 각 화자에 대한 목소리 선택 메뉴를 생성
     # st.columns를 사용해 2열로 깔끔하게 배치
@@ -225,29 +234,58 @@ if "script" in st.session_state and st.session_state.script:
         use_container_width=True,
         type="primary",
     ):
-        with st.spinner("🎧 팟캐스트 음성을 생성 중입니다... (1~2분 소요)"):
+        with st.spinner(
+            "🎧 팟캐스트 음성을 생성 중입니다... (긴 대사는 분할 처리됩니다)"
+        ):
+            # '이 대본과 설정으로 팟캐스트 음성 만들기 🎧' 버튼 로직 전체
             try:
-                client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-                # 사용자의 선택을 바탕으로 voice_map 생성
+                # --- (이전 코드와 동일) 사용자 선택으로 voice_map 생성 ---
                 voice_map = {}
                 for speaker in speakers:
                     voice_map[speaker] = st.session_state[f"voice_select_{speaker}"]
 
-                # 대사별 개별 음성 파일 생성
+                # --- 1. 모든 음성 조각을 생성해서 'audio_segments' 리스트에 모으기 ---
                 audio_segments = []
                 for line in parsed_lines:
                     speaker = line["speaker"]
-                    text = line["text"]
-                    voice = voice_map.get(speaker, "alloy")  # 만약의 경우 기본값
+                    full_text = line["text"]
+                    clova_speaker = voice_map.get(speaker, "nara")
 
-                    response = client.audio.speech.create(
-                        model="tts-1", voice=voice, input=text
-                    )
+                    if not full_text.strip():
+                        continue
 
-                    audio_bytes = io.BytesIO(response.content)
-                    segment = AudioSegment.from_file(audio_bytes, format="mp3")
-                    audio_segments.append(segment)
+                    # 텍스트 분할(Chunking) 로직
+                    text_chunks = []
+                    if len(full_text) > 2000:
+                        sentences = re.split(r"(?<=[.!?])\s+", full_text)
+                        current_chunk = ""
+                        for sentence in sentences:
+                            if len(current_chunk) + len(sentence) + 1 < 2000:
+                                current_chunk += sentence + " "
+                            else:
+                                text_chunks.append(current_chunk.strip())
+                                current_chunk = sentence + " "
+                        if current_chunk:
+                            text_chunks.append(current_chunk.strip())
+                    else:
+                        text_chunks.append(full_text)
+
+                    # 각 텍스트 조각에 대해 음성을 생성하고 리스트에 추가
+                    for text in text_chunks:
+                        audio_content, error = generate_clova_speech(
+                            text=text, speaker=clova_speaker
+                        )
+
+                        if error:
+                            st.error(error)
+                            st.stop()
+
+                        audio_bytes = io.BytesIO(audio_content)
+                        segment = AudioSegment.from_file(audio_bytes, format="mp3")
+                        audio_segments.append(segment)
+
+                # ======================================================================
+                # ▼▼▼ 2. 모든 for 루프가 끝난 후에, 딱 한 번만 음성 병합 및 출력! ▼▼▼
 
                 # 음성 파일 병합
                 pause = AudioSegment.silent(duration=500)
@@ -260,16 +298,17 @@ if "script" in st.session_state and st.session_state.script:
                 final_podcast.export(final_podcast_io, format="mp3")
                 final_podcast_io.seek(0)
 
-                st.audio(final_podcast_io, format="audio/mp3")
                 st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
+                st.audio(final_podcast_io, format="audio/mp3")
 
-                # ▼▼▼ 다운로드 버튼 추가! ▼▼▼
                 st.download_button(
                     label="🎧 MP3 파일 다운로드",
                     data=final_podcast_io,
-                    file_name=f"podcast.mp3",
+                    file_name="podcast.mp3",
                     mime="audio/mpeg",
                 )
+                # ▲▲▲ 이 로직이 루프 바깥으로 이동했습니다 ▲▲▲
+                # ======================================================================
 
             except Exception as e:
                 st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
