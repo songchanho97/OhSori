@@ -8,6 +8,7 @@ from pydub import AudioSegment
 from openai import OpenAI
 import io
 import re
+import random
 
 from core import (
     run_host_agent,
@@ -113,10 +114,10 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-             if st.session_state.podcast_mood != mood_key:
+            if st.session_state.podcast_mood != mood_key:
                 st.session_state.podcast_mood = mood_key
                 st.rerun()
-           
+
 
 # --- 4. 팟캐스트 언어 선택 섹션 (새로 추가) ---
 st.write("")
@@ -136,9 +137,7 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
             use_container_width=True,
             type=button_type,
         ):
-            if st.session_state.selected_language != lang_key:
-                st.session_state.selected_language = lang_key
-                st.rerun()
+            st.session_state.selected_language = lang_key
 
 # --- 5. 팟캐스트 생성 버튼 섹션 ---
 st.write("")
@@ -188,133 +187,164 @@ st.write("")
 # --- 6. 생성된 팟캐스트 대본 및 음성 생성 UI ---
 st.subheader("6. 생성된 팟캐스트 대본 및 음성")
 
-# st.session_state에 'script'가 생성되었다고 가정합니다.
 if "script" in st.session_state and st.session_state.script:
     final_script = st.session_state.script
 
-    # 생성된 대본을 UI에 표시
     st.text_area("생성된 팟캐스트 대본", final_script, height=300)
 
-    # --- 1단계 (준비): 대본에서 화자 목록 추출 ---
-    lines = re.split(r"\n(?=[\w\s]+:)", final_script.strip())
-    parsed_lines = []
-    for line in lines:
-        if ":" in line:
-            speaker, text = line.split(":", 1)
-            parsed_lines.append({"speaker": speaker.strip(), "text": text.strip()})
+    # --- 1. 대본에서 모든 화자 목록을 미리 추출 (새로운 로직) ---
+    try:
+        # Markdown 형식(**이름:**)에 맞춰 화자와 대사를 한 번에 추출하는 정규표현식
+        # **(영어 또는 한글 이름):** (대사 내용)
+        pattern = re.compile(r"\*\*([A-Za-z가-힣]+):\*\*\s*(.*)")
+        matches = pattern.findall(final_script)
 
-    # 고유한 화자 목록을 순서대로 정렬하여 추출
-    speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+        parsed_lines = [
+            {"speaker": speaker, "text": text.strip()} for speaker, text in matches
+        ]
 
-    # --- 2단계 (UI): 화자별 목소리 선택 UI 표시 ---
-    st.write("---")
-    st.subheader("🎤 화자별 목소리 설정")
+        if not parsed_lines:
+            # 만약 위 패턴으로 아무것도 찾지 못했을 경우, 기존의 단순 ": " 기준으로 다시 시도합니다.
+            lines = re.split(r"\n(?=[\w\s]+:)", final_script.strip())
+            parsed_lines = []
+            for line in lines:
+                if ":" in line:
+                    speaker, text = line.split(":", 1)
+                    parsed_lines.append(
+                        {"speaker": speaker.strip(), "text": text.strip()}
+                    )
 
-    # 사용 가능한 목소리 목록
-    available_voices = [
-        "nara",
-        "dara",
-        "jinho",
-        "nhajun",
-        "nsujin",
-        "nsiyun",
-        "njihun",
-    ]  # 예시 목록
-
-    # 각 화자에 대한 목소리 선택 메뉴를 생성
-    # st.columns를 사용해 2열로 깔끔하게 배치
-    cols = st.columns(2)
-    for i, speaker in enumerate(speakers):
-        with cols[i % 2]:
-            st.selectbox(
-                label=f"**{speaker}**의 목소리 선택",
-                options=available_voices,
-                key=f"voice_select_{speaker}",  # 각 메뉴를 구분하기 위한 고유 키
-            )
+        # 고유 화자 목록을 확정합니다.
+        speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
+    except Exception as e:
+        st.error(f"대본에서 화자를 분석하는 중 오류가 발생했습니다: {e}")
+        speakers = []  # 오류 발생 시 화자 목록을 비웁니다.
 
     st.write("---")
 
-    # --- 3단계 (실행): '음성 만들기' 버튼 및 로직 ---
-    if st.button(
-        "이 대본과 설정으로 팟캐스트 음성 만들기 🎧",
-        use_container_width=True,
-        type="primary",
-    ):
-        with st.spinner(
-            "🎧 팟캐스트 음성을 생성 중입니다... (긴 대사는 분할 처리됩니다)"
+    # 디버깅을 위해 실제 변수 값을 화면에 출력합니다.
+    st.info(f"분석된 화자 목록: {speakers}")
+    # st.info(f"인식된 화자 수: {len(speakers)}")
+
+    # --- 2. '음성 만들기' 버튼 ---
+    # 화자가 2명 이상일 때만 버튼이 활성화되도록 할 수 있습니다.
+    if len(speakers) >= 2:
+        if st.button(
+            "이 대본으로 팟캐스트 음성 만들기 🎧",
+            use_container_width=True,
+            type="primary",
         ):
-            # '이 대본과 설정으로 팟캐스트 음성 만들기 🎧' 버튼 로직 전체
-            try:
-                # --- (이전 코드와 동일) 사용자 선택으로 voice_map 생성 ---
-                voice_map = {}
-                for speaker in speakers:
-                    voice_map[speaker] = st.session_state[f"voice_select_{speaker}"]
+            with st.spinner("🎧 팟캐스트 음성을 생성 중입니다..."):
+                try:
+                    # --- 3. (핵심) 버튼 클릭 시, 목소리 자동 배정 ---
+                    st.info("대본의 화자들에게 목소리를 자동으로 배정합니다.")
 
-                # --- 1. 모든 음성 조각을 생성해서 'audio_segments' 리스트에 모으기 ---
-                audio_segments = []
-                for line in parsed_lines:
-                    speaker = line["speaker"]
-                    full_text = clean_text_for_tts(line["text"])
-                    clova_speaker = voice_map.get(speaker, "nara")
+                    available_voices = [
+                        "nara",
+                        "dara",
+                        "jinho",
+                        "nhajun",
+                        "nsujin",
+                        "nsiyun",
+                        "njihun",
+                    ]
+                    voice_map = {}
 
-                    if not full_text.strip():
-                        continue
+                    # 진행자와 게스트를 분리합니다.
+                    host_speakers = [
+                        s for s in speakers if "Host" in s or "진행자" in s
+                    ]
+                    guest_speakers = [s for s in speakers if s not in host_speakers]
 
-                    # 텍스트 분할(Chunking) 로직
-                    text_chunks = []
-                    if len(full_text) > 2000:
-                        sentences = re.split(r"(?<=[.!?])\s+", full_text)
-                        current_chunk = ""
-                        for sentence in sentences:
-                            if len(current_chunk) + len(sentence) + 1 < 2000:
-                                current_chunk += sentence + " "
-                            else:
-                                text_chunks.append(current_chunk.strip())
-                                current_chunk = sentence + " "
-                        if current_chunk:
-                            text_chunks.append(current_chunk.strip())
+                    # 3-1. 진행자에게는 고정 목소리를 할당합니다 (예: 'nara').
+                    host_voice = "nara"
+                    for host in host_speakers:
+                        voice_map[host] = host_voice
+
+                    # 3-2. 게스트에게 할당할 목소리 풀을 준비합니다.
+                    # 진행자가 사용한 목소리와 사용 가능한 전체 목소리를 고려합니다.
+                    guest_voice_pool = [v for v in available_voices if v != host_voice]
+
+                    # 3-3. 게스트 수만큼 랜덤으로, 겹치지 않게 목소리를 할당합니다.
+                    if len(guest_speakers) > len(guest_voice_pool):
+                        st.warning(
+                            "게스트가 너무 많아 일부 목소리가 중복될 수 있습니다."
+                        )
+                        # 목소리가 부족할 경우, 중복을 허용하여 배정
+                        selected_guest_voices = random.choices(
+                            guest_voice_pool, k=len(guest_speakers)
+                        )
                     else:
-                        text_chunks.append(full_text)
-
-                    # 각 텍스트 조각에 대해 음성을 생성하고 리스트에 추가
-                    for text in text_chunks:
-                        audio_content, error = generate_clova_speech(
-                            text=text, speaker=clova_speaker
+                        selected_guest_voices = random.sample(
+                            guest_voice_pool, len(guest_speakers)
                         )
 
-                        if error:
-                            st.error(error)
-                            st.stop()
+                    for guest, voice in zip(guest_speakers, selected_guest_voices):
+                        voice_map[guest] = voice
 
-                        audio_bytes = io.BytesIO(audio_content)
-                        segment = AudioSegment.from_file(audio_bytes, format="mp3")
-                        audio_segments.append(segment)
+                    # 사용자에게 배정 결과를 명확히 보여줍니다.
+                    for speaker, voice in voice_map.items():
+                        st.write(f"✅ **{speaker}** → **{voice}** 목소리로 배정")
 
-                # ======================================================================
-                # ▼▼▼ 2. 모든 for 루프가 끝난 후에, 딱 한 번만 음성 병합 및 출력! ▼▼▼
+                        # --- 4. 음성 생성 및 병합 ---
+                        audio_segments = []
+                        for line in parsed_lines:
+                            speaker = line["speaker"]
+                            text = line["text"].strip()
+                            clova_speaker = voice_map.get(
+                                speaker, "nara"
+                            )  # 맵에서 목소리 조회
 
-                # 음성 파일 병합
-                pause = AudioSegment.silent(duration=500)
-                final_podcast = AudioSegment.empty()
-                for segment in audio_segments:
-                    final_podcast += segment + pause
+                            if not text:
+                                continue
 
-                # 최종 파일 출력
-                final_podcast_io = io.BytesIO()
-                final_podcast.export(final_podcast_io, format="mp3")
-                final_podcast_io.seek(0)
+                            # 긴 텍스트 분할 (API 제한 대응)
+                            text_chunks = [
+                                text[i : i + 1000] for i in range(0, len(text), 1000)
+                            ]
 
-                st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
-                st.audio(final_podcast_io, format="audio/mp3")
+                            for chunk in text_chunks:
+                                audio_content, error = generate_clova_speech(
+                                    text=chunk, speaker=clova_speaker
+                                )
+                                if error:
+                                    st.error(
+                                        f"'{speaker}'의 음성 생성 중 오류: {error}"
+                                    )
+                                    st.stop()
 
-                st.download_button(
-                    label="🎧 MP3 파일 다운로드",
-                    data=final_podcast_io,
-                    file_name="podcast.mp3",
-                    mime="audio/mpeg",
-                )
-                # ▲▲▲ 이 로직이 루프 바깥으로 이동했습니다 ▲▲▲
-                # ======================================================================
+                                segment = AudioSegment.from_file(
+                                    io.BytesIO(audio_content), format="mp3"
+                                )
+                                audio_segments.append(segment)
 
-            except Exception as e:
-                st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
+                        # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+                        # 모든 음성 조각을 합치는 수정된 로직
+                        final_podcast = AudioSegment.empty()
+                        pause = AudioSegment.silent(duration=500)  # 500ms 쉼
+
+                        for i, segment in enumerate(audio_segments):
+                            final_podcast += segment
+                            # 마지막 오디오 조각 뒤에는 쉼을 추가하지 않습니다.
+                            if i < len(audio_segments) - 1:
+                                final_podcast += pause
+                        # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+                        # 최종 결과물 출력
+                        final_podcast_io = io.BytesIO()
+                        final_podcast.export(final_podcast_io, format="mp3")
+
+                        st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
+                        st.audio(final_podcast_io, format="audio/mp3")
+                        st.download_button(
+                            label="🎧 MP3 파일 다운로드",
+                            data=final_podcast_io,
+                            file_name="podcast.mp3",
+                            mime="audio/mpeg",
+                        )
+
+                except Exception as e:
+                    st.error(f"음성 생성 과정에서 예상치 못한 오류가 발생했습니다: {e}")
+    elif speakers:
+        # 화자가 1명만 있을 경우 안내 메시지를 표시합니다.
+        st.warning("팟캐스트를 생성하려면 대본에 최소 2명 이상의 화자가 필요합니다.")
