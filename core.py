@@ -25,6 +25,7 @@ def clean_text_for_tts(text):
 
     return cleaned_text
 
+
 def clean_text_for_tts(text):
     """
     TTS 음성 합성을 위해 대사 텍스트를 최종 전처리하는 함수.
@@ -42,6 +43,7 @@ def clean_text_for_tts(text):
 
 
 # core.py 파일의 run_host_agent 함수를 아래 코드로 교체해주세요.
+
 
 def run_host_agent(llm, topic, content, mode):
     """Host-Agent를 실행하여 게스트 정보와 인터뷰 개요를 반환"""
@@ -171,7 +173,7 @@ def assign_voices(speakers, language):
     if language == "영어":
         available_voices = ["clara", "danna", "djoey", "matt"]
         host_voice = "matt"
-    elif language == "일본어":  # ▼▼▼ 일본어 분기 추가 ▼▼▼
+    elif language == "일본어":
         available_voices = [
             "dayumu",
             "ddaiki",
@@ -181,36 +183,44 @@ def assign_voices(speakers, language):
             "dnaomi",
             "driko",
         ]
-        host_voice = "ddaiki"  # 일본어 진행자 목소리 (예시)
-
+        host_voice = "ddaiki"
+    elif language == "중국어":  # ▼▼▼ 중국어 분기 추가 ▼▼▼
+        available_voices = ["meimei", "liangliang", "chiahua"]
+        host_voice = "liangliang"  # 중국어 진행자 목소리 (예시)
     else:  # 기본값: 한국어
         available_voices = [
-            "nara",
             "dara",
             "jinho",
             "nhajun",
             "nsujin",
+            "nsiyun",
+            "njihun",
         ]
         host_voice = "nara"
 
     voice_map = {}
-
-    host_speakers = [s for s in speakers if "Host" in s or "진행자" in s or "Alex" in s]
+    # 'Host', '진행자' 등 언어별 진행자 키워드를 리스트로 관리
+    host_keywords = ["Host", "진행자", "Alex", "主持人"]
+    host_speakers = [s for s in speakers if s.strip("* ") in host_keywords]
     guest_speakers = [s for s in speakers if s not in host_speakers]
 
     for host in host_speakers:
         voice_map[host] = host_voice
 
+    # 진행자 목소리를 제외한 나머지 목소리 풀
     guest_voice_pool = [v for v in available_voices if v != host_voice]
-    if not guest_voice_pool:
+    if not guest_voice_pool:  # 만약 게스트 목소리 풀이 비었다면 전체 목소리 사용
         guest_voice_pool = available_voices
 
-    if len(guest_speakers) > len(guest_voice_pool):
-        selected_guest_voices = random.choices(guest_voice_pool, k=len(guest_speakers))
-    elif guest_speakers:
-        selected_guest_voices = random.sample(guest_voice_pool, len(guest_speakers))
-    else:
-        selected_guest_voices = []
+    selected_guest_voices = []
+    # 게스트 수에 맞게 목소리 배정 (중복 허용 또는 샘플링)
+    if guest_speakers:
+        if len(guest_speakers) > len(guest_voice_pool):
+            selected_guest_voices = random.choices(
+                guest_voice_pool, k=len(guest_speakers)
+            )
+        else:
+            selected_guest_voices = random.sample(guest_voice_pool, len(guest_speakers))
 
     for guest, voice in zip(guest_speakers, selected_guest_voices):
         voice_map[guest] = voice
