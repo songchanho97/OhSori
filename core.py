@@ -25,18 +25,53 @@ def clean_text_for_tts(text):
 
     return cleaned_text
 
+def clean_text_for_tts(text):
+    """
+    TTS 음성 합성을 위해 대사 텍스트를 최종 전처리하는 함수.
+    - '#', '*', '[]' 등 발음이 불필요한 특수기호를 제거합니다.
+    - (대사 안에 있는 사람 이름은 제거하지 않습니다.)
+    """
+    # 불필요한 특수 기호 및 단어를 제거합니다.
+    # 콜론(:)은 문장 중간에 나올 수 있으므로 제거 목록에서 제외하는 것이 좋습니다.
+    cleaned_text = re.sub(r"[#*\[\]]|클로징|오프닝", "", text)
 
-def run_host_agent(llm, topic):
+    # 여러 공백을 하나로 축소하고 양 끝 공백을 최종적으로 제거합니다.
+    cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
+
+    return cleaned_text
+
+
+# core.py 파일의 run_host_agent 함수를 아래 코드로 교체해주세요.
+
+def run_host_agent(llm, topic, content, mode):
     """Host-Agent를 실행하여 게스트 정보와 인터뷰 개요를 반환"""
-    prompt = load_prompt("./prompts/host_agent.yaml", encoding="utf-8")
+
+    # mode 값에 따라 사용할 프롬프트 파일을 결정합니다.
+    if mode == "팩트 브리핑":
+        prompt_path = "./prompts/host_agent_fact.yaml"
+    else:  # '균형 토의' 또는 다른 모든 경우
+        prompt_path = "./prompts/host_agent_discussion.yaml"
+
+    # 결정된 경로의 프롬프트 파일을 로드
+    prompt = load_prompt(prompt_path, encoding="utf-8")
+
     host_chain = prompt | llm | JsonOutputParser()
-    return host_chain.invoke({"topic": topic})
+    return host_chain.invoke({"topic": topic, "content": content})
 
 
-def run_guest_agents(llm, topic, guests, interview_outline):
+def run_guest_agents(llm, topic, guests, interview_outline, content, mode):
     """Guest-Agent들을 실행하여 각 게스트의 답변을 반환"""
     guest_answers = []
-    prompt = load_prompt("./prompts/guest_agent.yaml", encoding="utf-8")
+
+    # mode 값에 따라 사용할 프롬프트 파일을 결정합니다.
+    if mode == "팩트 브리핑":
+        prompt_path = "./prompts/guest_agent_fact.yaml"
+    else:  # '균형 토의' 또는 다른 모든 경우
+        prompt_path = "./prompts/guest_agent_discussion.yaml"
+
+    # 결정된 경로의 프롬프트 파일을 로드
+    prompt = load_prompt(prompt_path, encoding="utf-8")
+
     guest_chain = prompt | llm | StrOutputParser()
     for guest in guests:
         answer = guest_chain.invoke(
@@ -45,6 +80,7 @@ def run_guest_agents(llm, topic, guests, interview_outline):
                 "guest_description": guest["description"],
                 "topic": topic,
                 "questions": "\n- ".join(interview_outline),
+                "content": content,
             }
         )
         guest_answers.append({"name": guest["name"], "answer": answer})
@@ -103,11 +139,10 @@ def generate_clova_speech(text, speaker="nara", speed=0, pitch=0):
 def parse_script(script_text):
     """대본 텍스트를 파싱하여 화자별 대사 리스트와 전체 화자 리스트를 반환합니다."""
     try:
-        # ▼▼▼ 콜론(:)이 ** 안팎 어디에 있든 처리하도록 정규표현식 수정 ▼▼▼
-        # **이름** 또는 **이름:** 뒤에 콜론이 오는 경우 모두 처리
-        pattern = re.compile(r"\*\*([^:]+?)\**:\s*(.*)")
-        matches = pattern.findall(script_text)
 
+        # **...:** 형식으로 된 화자를 모두 인식하도록 수정
+        pattern = re.compile(r"\*\*(.*?):\*\*\s*(.*)")
+        matches = pattern.findall(script_text)
         parsed_lines = [
             {"speaker": speaker.strip(), "text": text.strip()}
             for speaker, text in matches
@@ -147,20 +182,20 @@ def assign_voices(speakers, language):
             "driko",
         ]
         host_voice = "ddaiki"  # 일본어 진행자 목소리 (예시)
+
     else:  # 기본값: 한국어
         available_voices = [
+            "nara",
             "dara",
             "jinho",
             "nhajun",
             "nsujin",
-            "nsiyun",
-            "njihun",
         ]
         host_voice = "nara"
 
     voice_map = {}
-    host_keywords = ["Host", "진행자", "Alex"]
-    host_speakers = [s for s in speakers if s.strip("* ") in host_keywords]
+
+    host_speakers = [s for s in speakers if "Host" in s or "진행자" in s or "Alex" in s]
     guest_speakers = [s for s in speakers if s not in host_speakers]
 
     for host in host_speakers:
