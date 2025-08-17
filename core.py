@@ -8,6 +8,7 @@ import streamlit as st
 import re
 from pydub import AudioSegment
 import io
+from pydub.effects import speedup
 
 
 def clean_text_for_tts(text):
@@ -330,6 +331,18 @@ def generate_audio_segments(parsed_lines, voice_map, mood):  # 1. mood 인자 �
     progress_bar.empty()
     return audio_segments
 
+def change_audio_speed(audio_segment, speed=1.0):
+    """
+    pydub.effects.speedup을 사용하여 오디오의 재생 속도를 변경합니다.
+    """
+    if speed == 1.0:
+        return audio_segment
+    return speedup(audio_segment, playback_speed=speed)
+
+
+
+
+# core.py에 있는 기존 함수를 이렇게 수정합니다.
 
 def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     """음성 조각들에 BGM을 입히고 최종 팟캐스트 파일을 생성합니다."""
@@ -357,8 +370,13 @@ def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     final_podcast = final_podcast.overlay(final_bgm_track)
     final_podcast = final_podcast.overlay(final_podcast_voice, position=intro_duration)
 
-    # 4. 메모리로 내보내기
-    final_podcast_io = io.BytesIO()
-    final_podcast.export(final_podcast_io, format="mp3", bitrate="192k")
-    final_podcast_io.seek(0)
-    return final_podcast_io
+    # 4. 메모리로 내보내기 (이 부분을 수정합니다.)
+    # final_podcast_io = io.BytesIO()
+    # final_podcast.export(final_podcast_io, format="mp3", bitrate="192k")
+    # final_podcast_io.seek(0)
+    # return final_podcast_io
+    
+    # 수정된 부분: AudioSegment 객체를 바로 반환
+    return final_podcast
+
+ 
