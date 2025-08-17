@@ -180,32 +180,14 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
 
 # app.py에서 수정할 부분
 
-# --- 6. 재생 속도 선택 섹션 ---
-st.subheader("6. 재생 속도 선택")
-speed_options = ["1.0x", "1.25x", "1.5x", "2.0x"]
-cols_speed = st.columns(len(speed_options))
 
 # 세션 상태에 'selected_speed'가 없으면 초기값으로 '1.0x'를 설정합니다.
 if "selected_speed" not in st.session_state:
     st.session_state.selected_speed = "1.0x"
 
-for i, speed_label in enumerate(speed_options):
-    with cols_speed[i]:
-        if st.button(
-            speed_label,
-            key=f"speed_btn_{i}",
-            use_container_width=True,
-            type=(
-                "primary"
-                if st.session_state.selected_speed == speed_label
-                else "secondary"
-            ),
-        ):
-            if st.session_state.selected_speed != speed_label:
-                st.session_state.selected_speed = speed_label
-                st.rerun()  # 선택이 변경되면 UI를 즉시 업데이트
+
 # --- 5. 대본 생성 버튼 섹션 ---
-st.subheader("7. 팟캐스트 생성")
+st.subheader("6. 팟캐스트 생성")
 
 if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, type="primary"):
     if not query:
