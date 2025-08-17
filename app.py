@@ -42,6 +42,7 @@ from core import (
     assign_voices,
     generate_audio_segments,
     process_podcast_audio,
+    get_speech_style_for_mood,
 )
 
 load_dotenv(dotenv_path=".env")
@@ -243,7 +244,7 @@ if st.session_state.script:
                     # 3. 모든 대사에 대한 음성 조각 생성
                     st.write("#### 🎧 음성 조각 생성 중...")
                     audio_segments = generate_audio_segments(
-                        parsed_lines, voice_map, speakers
+                        parsed_lines, voice_map, st.session_state.podcast_mood
                     )
                     st.write(f"총 {len(audio_segments)}개의 음성 조각을 생성했습니다.")
 
