@@ -203,7 +203,7 @@ for i, speed_label in enumerate(speed_options):
         ):
             if st.session_state.selected_speed != speed_label:
                 st.session_state.selected_speed = speed_label
-                st.rerun() # 선택이 변경되면 UI를 즉시 업데이트
+                st.rerun()  # 선택이 변경되면 UI를 즉시 업데이트
 # --- 5. 대본 생성 버튼 섹션 ---
 st.subheader("7. 팟캐스트 생성")
 
@@ -281,23 +281,31 @@ if st.session_state.script:
                         parsed_lines, voice_map, st.session_state.podcast_mood
                     )
                     st.write(f"총 {len(audio_segments)}개의 음성 조각을 생성했습니다.")
-                    
+
                     # 4. BGM과 함께 최종 팟캐스트 오디오 처리
                     st.write("#### 🎶 BGM 편집 및 최종 결합 중...")
                     # process_podcast_audio 함수가 AudioSegment를 반환하도록 core.py에서 수정해야 합니다.
-                    final_podcast_audio_segment = process_podcast_audio(audio_segments, "mp3.mp3")
+                    final_podcast_audio_segment = process_podcast_audio(
+                        audio_segments, "mp3.mp3"
+                    )
 
                     # 5. 재생 속도 적용
                     # core.py에 change_audio_speed 함수를 추가하고 불러와야 합니다.
-                    speed_factor = float(st.session_state.selected_speed.replace("x", ""))
+                    speed_factor = float(
+                        st.session_state.selected_speed.replace("x", "")
+                    )
                     if speed_factor != 1.0:
-                        final_podcast_audio_segment = change_audio_speed(final_podcast_audio_segment, speed_factor)
+                        final_podcast_audio_segment = change_audio_speed(
+                            final_podcast_audio_segment, speed_factor
+                        )
 
                     # 6. 최종 오디오를 메모리로 내보내기
                     final_podcast_io = io.BytesIO()
-                    final_podcast_audio_segment.export(final_podcast_io, format="mp3", bitrate="192k")
+                    final_podcast_audio_segment.export(
+                        final_podcast_io, format="mp3", bitrate="192k"
+                    )
                     final_podcast_io.seek(0)
-                    
+
                     # 7. 결과 출력
                     st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
                     st.audio(final_podcast_io, format="audio/mp3")
