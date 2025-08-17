@@ -113,17 +113,13 @@ def run_writer_agent(llm, topic, mood, language, guests, guest_answers):
 def get_speech_style_for_mood(mood):
     """선택된 분위기에 맞는 음성 스타일 파라미터 딕셔너리를 반환합니다."""
     if mood == "차분한":
-        # emotion: 0 (중립)
-        return {"speed": -2, "pitch": -1, "emotion": 0}
+        return {"speed": 0, "pitch": 1, "emotion": 0}
     elif mood == "신나는":
-        # emotion: 2 (기쁨)
-        return {"speed": -2, "pitch": 1, "emotion": 2, "emotion_strength": 2}
+        return {"speed": -2, "pitch": -1, "emotion": 2}
     elif mood == "전문적인":
-        # emotion: 0 (중립)
-        return {"speed": 0, "pitch": -1, "emotion": 0}
+        return {"speed": 0, "pitch": 1, "emotion": 0}
     elif mood == "유머러스한":
-        # emotion: 2 (기쁨)
-        return {"speed": -2, "pitch": -1, "emotion": 2, "alpha": 3}
+        return {"speed": -2, "pitch": -2, "emotion": 2}
     else:  # 기본값
         return {}
 
@@ -158,8 +154,6 @@ def generate_clova_speech(
     params = {
         "speaker": speaker,
         "text": text,
-        "speed": speed,
-        "pitch": pitch,
         "format": "mp3",
     }
     # 선택적 파라미터 (값이 있을 때만 추가)
@@ -243,16 +237,8 @@ def assign_voices(speakers, language):
         available_voices = ["meimei", "liangliang", "chiahua"]
         host_voice = "liangliang"  # 중국어 진행자 목소리 (예시)
     else:  # 기본값: 한국어
-        available_voices = [
-            "vara",
-            "vdaeseong",
-            "vdain",
-            "vdonghyun",
-            "vhyeri",
-            "vian",
-            
-        ]
-        host_voice = "vmikyung"
+        available_voices = ["vdaeseong", "vmikyung"]
+        host_voice = "vgoeun"
 
     voice_map = {}
     # 'Host', '진행자' 등 언어별 진행자 키워드를 리스트로 관리
@@ -331,6 +317,7 @@ def generate_audio_segments(parsed_lines, voice_map, mood):  # 1. mood 인자 �
     progress_bar.empty()
     return audio_segments
 
+
 def change_audio_speed(audio_segment, speed=1.0):
     """
     pydub.effects.speedup을 사용하여 오디오의 재생 속도를 변경합니다.
@@ -340,9 +327,8 @@ def change_audio_speed(audio_segment, speed=1.0):
     return speedup(audio_segment, playback_speed=speed)
 
 
-
-
 # core.py에 있는 기존 함수를 이렇게 수정합니다.
+
 
 def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     """음성 조각들에 BGM을 입히고 최종 팟캐스트 파일을 생성합니다."""
@@ -375,8 +361,6 @@ def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     # final_podcast.export(final_podcast_io, format="mp3", bitrate="192k")
     # final_podcast_io.seek(0)
     # return final_podcast_io
-    
+
     # 수정된 부분: AudioSegment 객체를 바로 반환
     return final_podcast
-
- 
