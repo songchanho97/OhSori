@@ -174,6 +174,7 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
                 st.session_state.selected_language = lang_key
                 st.rerun()
 
+
 # 세션 상태에 'selected_speed'가 없으면 초기값으로 '1.0x'를 설정합니다.
 if "selected_speed" not in st.session_state:
     st.session_state.selected_speed = "1.0x"
