@@ -31,7 +31,6 @@ import streamlit as st
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 import os
-import io
 
 # core.py에서 모든 함수를 가져옵니다.
 from core import (
@@ -43,8 +42,6 @@ from core import (
     assign_voices,
     generate_audio_segments,
     process_podcast_audio,
-    get_speech_style_for_mood,
-    change_audio_speed,
 )
 
 load_dotenv(dotenv_path=".env")
@@ -178,13 +175,9 @@ for i, (lang_key, lang_label) in enumerate(language_options.items()):
                 st.rerun()
 
 
-# app.py에서 수정할 부분
-
-
 # 세션 상태에 'selected_speed'가 없으면 초기값으로 '1.0x'를 설정합니다.
 if "selected_speed" not in st.session_state:
     st.session_state.selected_speed = "1.0x"
-
 
 # --- 5. 대본 생성 버튼 섹션 ---
 st.subheader("6. 팟캐스트 생성")
@@ -223,15 +216,11 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
         except Exception as e:
             st.error(f"대본 생성 중 오류: {e}")
 
-# app.py에서 수정할 부분
-
 # --- 6. 음성 생성 섹션 ---
-# 이 조건문이 '대본이 있을 때만' 아래 내용을 표시하도록 합니다.
 if st.session_state.script:
     st.subheader("🎉 생성된 팟캐스트 대본")
     st.text_area("대본", st.session_state.script, height=300)
 
-    # 이 버튼과 아래의 모든 로직이 if 조건문 안에 포함되어야 합니다.
     if st.button(
         "🎧 이 대본으로 음성 생성하기", use_container_width=True, type="primary"
     ):
@@ -240,8 +229,6 @@ if st.session_state.script:
         ):
             try:
                 # 1. 스크립트 파싱
-                # core.py에 추가한 normalize_speaker_names 함수를 사용하면 더 좋습니다.
-                # 예: parsed_lines, speakers = normalize_speaker_names(st.session_state.script)
                 parsed_lines, speakers = parse_script(st.session_state.script)
 
                 if not speakers:
@@ -260,35 +247,15 @@ if st.session_state.script:
                     # 3. 모든 대사에 대한 음성 조각 생성
                     st.write("#### 🎧 음성 조각 생성 중...")
                     audio_segments = generate_audio_segments(
-                        parsed_lines, voice_map, st.session_state.podcast_mood
+                        parsed_lines, voice_map, speakers
                     )
                     st.write(f"총 {len(audio_segments)}개의 음성 조각을 생성했습니다.")
 
                     # 4. BGM과 함께 최종 팟캐스트 오디오 처리
                     st.write("#### 🎶 BGM 편집 및 최종 결합 중...")
-                    # process_podcast_audio 함수가 AudioSegment를 반환하도록 core.py에서 수정해야 합니다.
-                    final_podcast_audio_segment = process_podcast_audio(
-                        audio_segments, "mp3.mp3"
-                    )
+                    final_podcast_io = process_podcast_audio(audio_segments, "mp3.mp3")
 
-                    # 5. 재생 속도 적용
-                    # core.py에 change_audio_speed 함수를 추가하고 불러와야 합니다.
-                    speed_factor = float(
-                        st.session_state.selected_speed.replace("x", "")
-                    )
-                    if speed_factor != 1.0:
-                        final_podcast_audio_segment = change_audio_speed(
-                            final_podcast_audio_segment, speed_factor
-                        )
-
-                    # 6. 최종 오디오를 메모리로 내보내기
-                    final_podcast_io = io.BytesIO()
-                    final_podcast_audio_segment.export(
-                        final_podcast_io, format="mp3", bitrate="192k"
-                    )
-                    final_podcast_io.seek(0)
-
-                    # 7. 결과 출력
+                    # 5. 결과 출력
                     st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
                     st.audio(final_podcast_io, format="audio/mp3")
                     st.download_button(
