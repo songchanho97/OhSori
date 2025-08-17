@@ -185,13 +185,19 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
     if not query:
         st.error("뉴스 검색 키워드를 입력해주세요!")
     else:
+        bar = st.progress(0, text="🧩 준비 중…")  # ✅ 진행률 바 '먼저' 생성
         try:
+            bar.progress(5, text="모델 초기화 중…")
             llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
 
+            # 1) Host-Agent
             with st.spinner("1/3: Host-Agent가 게스트를 섭외하고 있습니다..."):
                 host_response = run_host_agent(
                     llm, query, content, st.session_state.podcast_mode
                 )
+            bar.progress(35, text="1/3 Host-Agent 완료")
+
+            # 2) Guest-Agents
             with st.spinner("2/3: Guest-Agents가 답변을 준비하고 있습니다..."):
                 guest_answers = run_guest_agents(
                     llm,
@@ -201,8 +207,10 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
                     content,
                     st.session_state.podcast_mode,
                 )
-            with st.spinner("3/3: Writer-Agent가 대본을 작성하고 있습니다..."):
+            bar.progress(70, text="2/3 Guest-Agents 완료")
 
+            # 3) Writer-Agent
+            with st.spinner("3/3: Writer-Agent가 대본을 작성하고 있습니다..."):
                 final_script = run_writer_agent(
                     llm,
                     query,
@@ -211,9 +219,16 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
                     host_response["guests"],
                     guest_answers,
                 )
-                st.session_state.script = final_script
+            st.session_state.script = final_script
+            bar.progress(100, text="✅ 대본 생성 완료!")
+
         except Exception as e:
             st.error(f"대본 생성 중 오류: {e}")
+        finally:
+            # ✅ bar가 항상 존재하므로 안전하게 비우기
+            bar.empty()
+
+        
 
 # --- 6. 음성 생성 섹션 ---
 if st.session_state.script:
