@@ -129,10 +129,7 @@ for i, (mood_key, mood_label) in enumerate(mood_options.items()):
 
 # --- 4. 팟캐스트 모드 선택 섹션 ---
 st.subheader("4. 팟캐스트 모드 선택")
-mode_options = {
-    "팩트 브리핑": "팩트 브리핑",
-    "균형 토의": "균형 토의"
-}
+mode_options = {"팩트 브리핑": "팩트 브리핑", "균형 토의": "균형 토의"}
 cols_mode = st.columns(len(mode_options))
 for i, (mode_key, mode_label) in enumerate(mode_options.items()):
     with cols_mode[i]:
@@ -148,23 +145,35 @@ for i, (mode_key, mode_label) in enumerate(mode_options.items()):
                 st.session_state.podcast_mode = mode_key
                 st.rerun()
 
+
 # --- 5. 팟캐스트 언어 선택 섹션 ---
 st.subheader("5. 팟캐스트 언어 선택")
-language_options = {"한국어": "🇰🇷 한국어", "영어": "🇺🇸 영어"}
-cols_lang = st.columns(len(language_options))
+# '중국어'를 '일본어'로 변경하고 emoji 추가
+language_options = {
+    "한국어": "🇰🇷 한국어",
+    "영어": "🇺🇸 영어",
+    "일본어": "🇯🇵 일본어",
+    "중국어": "🇨🇳 중국어",
+}
+
+lang_cols = st.columns(len(language_options))
+
 for i, (lang_key, lang_label) in enumerate(language_options.items()):
-    with cols_lang[i]:
+    with lang_cols[i]:
+        button_type = (
+            "primary" if st.session_state.selected_language == lang_key else "secondary"
+        )
         if st.button(
             lang_label,
-            key=f"lang_{lang_key}",
+            key=f"lang_btn_{lang_key}",  # 키 값을 다른 섹션과 겹치지 않게 수정
             use_container_width=True,
-            type=(
-                "primary"
-                if st.session_state.selected_language == lang_key
-                else "secondary"
-            ),
+            type=button_type,
         ):
-            st.session_state.selected_language = lang_key
+            # 상태가 실제로 변경되었을 때만 rerun을 호출합니다. (이 부분이 핵심!)
+            if st.session_state.selected_language != lang_key:
+                st.session_state.selected_language = lang_key
+                st.rerun()
+
 
 # --- 5. 대본 생성 버튼 섹션 ---
 st.subheader("5. 팟캐스트 생성")
@@ -176,18 +185,18 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
         try:
             llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
 
-
             with st.spinner("1/3: Host-Agent가 게스트를 섭외하고 있습니다..."):
-                host_response = run_host_agent(llm, query, content, st.session_state.podcast_mode)
+                host_response = run_host_agent(
+                    llm, query, content, st.session_state.podcast_mode
+                )
             with st.spinner("2/3: Guest-Agents가 답변을 준비하고 있습니다..."):
                 guest_answers = run_guest_agents(
                     llm,
                     query,
                     host_response["guests"],
                     host_response["interview_outline"],
-
                     content,
-                    st.session_state.podcast_mode
+                    st.session_state.podcast_mode,
                 )
             with st.spinner("3/3: Writer-Agent가 대본을 작성하고 있습니다..."):
 
