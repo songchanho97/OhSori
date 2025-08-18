@@ -10,6 +10,7 @@ from pydub import AudioSegment
 import io
 
 
+
 def clean_text_for_tts(text):
     """
     TTS 음성 합성을 위해 대사 텍스트를 최종 전처리하는 함수.
@@ -90,10 +91,12 @@ def run_guest_agents(llm, topic, guests, interview_outline, content, mode):
 
 
 def run_writer_agent(llm, topic, mood, language, guests, guest_answers):
-    """Writer-Agent를 실행하여 최종 팟캐스트 대본을 반환"""
+    """Writer-Agent를 실행하여 최종 팟캐스트 대본을 스트리밍으로 반환"""
     prompt = load_prompt("./prompts/writer_agent.yaml", encoding="utf-8")
     writer_chain = prompt | llm | StrOutputParser()
-    return writer_chain.invoke(
+    
+    # .invoke 대신 .stream을 사용하여 결과를 스트리밍합니다.
+    return writer_chain.stream(
         {
             "topic": topic,
             "mood": mood,

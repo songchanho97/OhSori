@@ -184,6 +184,8 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
     else:
         try:
             llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
+            
+            st.session_state.script = "" # 새 대본 생성을 위해 초기화
 
             with st.spinner("1/3: Host-Agent가 게스트를 섭외하고 있습니다..."):
                 host_response = run_host_agent(
@@ -198,9 +200,12 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
                     content,
                     st.session_state.podcast_mode,
                 )
+            
+            st.subheader("🎉 생성된 팟캐스트 대본")
             with st.spinner("3/3: Writer-Agent가 대본을 작성하고 있습니다..."):
 
-                final_script = run_writer_agent(
+                # 스트리밍 응답을 받기 위해 run_writer_agent 호출
+                script_stream = run_writer_agent(
                     llm,
                     query,
                     st.session_state.podcast_mood,
@@ -208,7 +213,17 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
                     host_response["guests"],
                     guest_answers,
                 )
+                
+                # st.write_stream을 사용하여 스트리밍 응답을 화면에 표시
+                # 테두리가 있는 컨테이너 안에 출력하여 시각적 구분을 줍니다.
+                with st.container(border=True):
+                    final_script = st.write_stream(script_stream)
+
+                # 스트리밍이 완료되면 전체 스크립트를 세션 상태에 저장
                 st.session_state.script = final_script
+                # st.rerun()을 호출하여 스크립트가 완전히 로드된 상태로 UI를 새로고침
+                st.rerun()
+
         except Exception as e:
             st.error(f"대본 생성 중 오류: {e}")
 
