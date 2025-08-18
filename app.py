@@ -177,7 +177,6 @@ with OptionsTab:
         "차분한": "🧘‍♀️ 차분한",
         "신나는": "🥳 신나는",
         "전문적인": "👨‍🏫 전문적인",
-        "유머러스한": "😂 유머러스한",
     }
     cols_mood = st.columns(len(mood_options))
     for i, (mood_key, mood_label) in enumerate(mood_options.items()):
