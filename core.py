@@ -194,7 +194,7 @@ def parse_script(script_text):
         # **...:** 형식으로 된 화자를 모두 인식하도록 수정
         pattern = re.compile(r"\*\*(.*?):\*\*\s*(.*)")
         matches = pattern.findall(script_text)
-        
+
         # ✅ 추가: **...**: 형식 (콜론이 볼드 밖)
         if not matches:
             pattern_outside = re.compile(r"\*\*(.*?)\*\*:\s*(.*)")
@@ -363,10 +363,10 @@ def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     final_podcast = final_podcast.overlay(final_podcast_voice, position=intro_duration)
 
     # 4. 메모리로 내보내기 (이 부분을 수정합니다.)
-    # final_podcast_io = io.BytesIO()
-    # final_podcast.export(final_podcast_io, format="mp3", bitrate="192k")
-    # final_podcast_io.seek(0)
-    # return final_podcast_io
+    final_podcast_io = io.BytesIO()
+    final_podcast.export(final_podcast_io, format="mp3", bitrate="192k")
+    final_podcast_io.seek(0)
+    return final_podcast_io
 
     # 수정된 부분: AudioSegment 객체를 바로 반환
-    return final_podcast
+    # return final_podcast
