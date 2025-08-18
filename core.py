@@ -9,7 +9,88 @@ import re
 from pydub import AudioSegment
 import io
 from pydub.effects import speedup
+import json
+import requests
+from datetime import datetime, timedelta
 
+
+# KINDS API 키
+KINDS_API_KEY = "6baa0f25-4695-4a66-aff8-4389931c6521"
+# 뉴스 검색 API URL (OpenAPI_사용자치침서_V1.5.pdf 6페이지 참조)
+NEWS_SEARCH_URL = "https://tools.kinds.or.kr/search/news"
+
+# 뉴스 통합 분류체계 코드 (PDF 38-40페이지 참조)
+CATEGORY_CODES = {
+    "전체": "",
+    "정치": "001000000",
+    "경제": "002000000",
+    "사회": "003000000",
+    "문화": "004000000",
+    "국제": "005000000",
+    "스포츠": "007000000",
+    "IT": "008000000",
+}
+
+
+def fetch_news_articles(query: str, category: str, num_articles: int = 5) -> str | None:
+    """
+    KINDS 뉴스 검색 API를 호출하여 관련 뉴스 기사 내용을 가져오는 함수
+    """
+    category_code = CATEGORY_CODES.get(category)
+
+    # 검색 기간을 최근 1달로 동적으로 설정
+    until_date = datetime.now()
+    from_date = until_date - timedelta(days=30)
+
+    request_body = {
+        "access_key": KINDS_API_KEY,
+        "argument": {
+            "query": query,
+            "published_at": {
+                "from": from_date.strftime("%Y-%m-%d"),
+                "until": until_date.strftime("%Y-%m-%d"),
+            },
+            "provider": [],
+            "category": [category_code] if category_code else [],
+            "sort": [
+                {"_score": "desc"}, # 1순위: 정확도 높은 순
+                {"date": "desc"}    # 2순위: 최신순
+            ],
+            "return_from": 0,
+            "return_size": num_articles,
+            "fields": ["title", "content", "provider", "published_at", "hilight"],
+        },
+    }
+
+    try:
+        response = requests.post(NEWS_SEARCH_URL, data=json.dumps(request_body))
+        response.raise_for_status()
+
+        data = response.json()
+        if data.get("return_object", {}).get("total_hits", 0) == 0:
+            st.warning("검색된 뉴스 기사가 없습니다. 다른 키워드로 시도해보세요.")
+            return None
+
+        articles = data.get("return_object", {}).get("documents", [])
+        context = ""
+        for i, article in enumerate(articles):
+            context += f"--- 뉴스{i+1} ---\n"
+            context += f"제목: {article.get('title', 'N/A')}\n"
+            # hilight 필드는 검색어 주변을 강조해서 보여주므로 content보다 유용합니다.
+            content_summary = (
+                article.get("hilight", "내용 없음")
+                .replace("<b>", "")
+                .replace("</b>", "")
+            )
+            context += f"본문: {content_summary}\n\n"
+        return context
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"뉴스 API 요청에 실패했습니다: {e}")
+        return None
+    except Exception as e:
+        st.error(f"뉴스 데이터를 처리하는 중 오류가 발생했습니다: {e}")
+        return None
 
 
 def clean_text_for_tts(text):
