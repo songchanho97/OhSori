@@ -11,21 +11,6 @@ import io
 from pydub.effects import speedup
 
 
-def clean_text_for_tts(text):
-    """
-    TTS 음성 합성을 위해 대사 텍스트를 최종 전처리하는 함수.
-    - '#', '*', '[]' 등 발음이 불필요한 특수기호를 제거합니다.
-    - (대사 안에 있는 사람 이름은 제거하지 않습니다.)
-    """
-    # 불필요한 특수 기호 및 단어를 제거합니다.
-    # 콜론(:)은 문장 중간에 나올 수 있으므로 제거 목록에서 제외하는 것이 좋습니다.
-    cleaned_text = re.sub(r"[#*\[\]]|클로징|오프닝", "", text)
-
-    # 여러 공백을 하나로 축소하고 양 끝 공백을 최종적으로 제거합니다.
-    cleaned_text = re.sub(r"\s+", " ", cleaned_text).strip()
-
-    return cleaned_text
-
 
 def clean_text_for_tts(text):
     """
