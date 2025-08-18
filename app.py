@@ -229,7 +229,6 @@ if st.button("✨ 팟캐스트 대본 생성하기", use_container_width=True, t
             # ✅ bar가 항상 존재하므로 안전하게 비우기
             bar.empty()
 
-        
 
 # --- 6. 음성 생성 섹션 ---
 if st.session_state.script:
