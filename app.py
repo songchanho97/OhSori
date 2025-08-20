@@ -2,10 +2,13 @@
 import base64
 from streamlit.components.v1 import html as html_component
 
+
 def make_video_data_url(filepath: str) -> str:
     with open(filepath, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("utf-8")
     return f"data:video/mp4;base64,{b64}"
+
+
 def render_ad_video(title, desc, cta_text, link, video_src, video_width=500):
     return f"""
     <div style="box-sizing:border-box; width:100%; max-width:1380px; margin:12px auto 0 0 0;
@@ -25,6 +28,8 @@ def render_ad_video(title, desc, cta_text, link, video_src, video_width=500):
       </div>
       <div style="margin-top:8px; color:#9CA3AF; font-size:12px;">광고</div>
     </div>
+"""
+
 
 import streamlit as st
 from langchain_openai import ChatOpenAI
@@ -141,19 +146,23 @@ with MainTab:
                     desc="잠깐의 관심이 큰 기적이 됩니다.",
                     cta_text="자세히 보기",
                     link="https://www.safe182.go.kr",
-                    video_src=data_url,   # ← data URL 전달!
+                    video_src=data_url,  # ← data URL 전달!
                 )
                 html_component(ad_html, height=380, scrolling=False)
 
                 # 3) 실제 Agent 실행
                 try:
                     with loading_area:
-                        with st.spinner("1/3: Host-Agent가 게스트를 섭외하고 있습니다..."):
+                        with st.spinner(
+                            "1/3: Host-Agent가 게스트를 섭외하고 있습니다..."
+                        ):
                             host_response = run_host_agent(
                                 llm, query, content, st.session_state.podcast_mode
                             )
 
-                        with st.spinner("2/3: Guest-Agents가 답변을 준비하고 있습니다..."):
+                        with st.spinner(
+                            "2/3: Guest-Agents가 답변을 준비하고 있습니다..."
+                        ):
                             guest_answers = run_guest_agents(
                                 llm,
                                 query,
@@ -163,7 +172,9 @@ with MainTab:
                                 st.session_state.podcast_mode,
                             )
 
-                        with st.spinner("3/3: Writer-Agent가 대본을 작성하고 있습니다..."):
+                        with st.spinner(
+                            "3/3: Writer-Agent가 대본을 작성하고 있습니다..."
+                        ):
                             final_script = run_writer_agent(
                                 llm,
                                 query,
@@ -178,7 +189,6 @@ with MainTab:
 
                 except Exception as e:
                     st.error(f"대본 생성 중 오류: {e}")
-
 
     # --- 7. 음성 생성 섹션 ---
     if st.session_state.script:
@@ -300,4 +310,4 @@ with OptionsTab:
                 # 상태가 실제로 변경되었을 때만 rerun을 호출합니다. (이 부분이 핵심!)
                 if st.session_state.selected_language != lang_key:
                     st.session_state.selected_language = lang_key
-                    st.rerun() 
+                    st.rerun()
