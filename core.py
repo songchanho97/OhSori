@@ -32,7 +32,7 @@ CATEGORY_CODES = {
 }
 
 
-def fetch_news_articles(query: str, category: str, num_articles: int = 5) -> str | None:
+def fetch_news_articles(query: str, category: str, num_articles: int = 6) -> str | None:
     """
     KINDS 뉴스 검색 API를 호출하여 관련 뉴스 기사 내용을 가져오는 함수
     """

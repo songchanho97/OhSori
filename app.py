@@ -25,7 +25,7 @@ def render_ad_video(title, desc, cta_text, link, video_src, video_width=500):
       </div>
       <div style="margin-top:8px; color:#9CA3AF; font-size:12px;">광고</div>
     </div>
-
+"""
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
@@ -44,6 +44,7 @@ from core import (
 
 load_dotenv(dotenv_path=".env")
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
+
 
 st.set_page_config(page_title="🎤 AI 뉴스 팟캐스트 스튜디오", layout="wide")
 st.title("🎤 AI 뉴스 팟캐스트 스튜디오")
@@ -235,9 +236,9 @@ with OptionsTab:
 
     st.markdown("**팟캐스트 분위기 선택**")
     mood_options = {
-        "차분한": "🧘‍♀️ 차분한",
-        "신나는": "🥳 신나는",
-        "전문적인": "👨‍🏫 전문적인",
+        "차분한": "🌿 차분한",
+        "신나는": "💃 신나는",
+        "전문적인": "🧑‍💼 전문적인",
     }
     cols_mood = st.columns(len(mood_options))
     for i, (mood_key, mood_label) in enumerate(mood_options.items()):
