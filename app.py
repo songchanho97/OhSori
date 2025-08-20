@@ -25,12 +25,6 @@ def render_ad_video(title, desc, cta_text, link, video_src, video_width=500):
       </div>
       <div style="margin-top:8px; color:#9CA3AF; font-size:12px;">광고</div>
     </div>
-    """
-
-
-
-
-
 
 import streamlit as st
 from langchain_openai import ChatOpenAI
@@ -119,6 +113,11 @@ with MainTab:
             st.error("뉴스 검색 키워드를 입력해주세요!")
         else:
             # 0) 먼저 LLM 초기화
+
+            # 뉴스 기사 검색(API 호출)
+            final_content = ""
+            with st.spinner("1/4: KINDS API에서 최신 뉴스를 검색하고 있습니다..."):
+                content = fetch_news_articles(query, st.session_state.selected_category)
             try:
                 llm = ChatOpenAI(model_name="gpt-4o", temperature=0.7)
             except Exception as e:
