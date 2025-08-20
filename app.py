@@ -50,6 +50,7 @@ from core import (
 load_dotenv(dotenv_path=".env")
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 
+
 st.set_page_config(page_title="🎤 AI 뉴스 팟캐스트 스튜디오", layout="wide")
 st.title("🎤 AI 뉴스 팟캐스트 스튜디오")
 st.markdown(
@@ -245,9 +246,9 @@ with OptionsTab:
 
     st.markdown("**팟캐스트 분위기 선택**")
     mood_options = {
-        "차분한": "🧘‍♀️ 차분한",
-        "신나는": "🥳 신나는",
-        "전문적인": "👨‍🏫 전문적인",
+        "차분한": "🌿 차분한",
+        "신나는": "💃 신나는",
+        "전문적인": "🧑‍💼 전문적인",
     }
     cols_mood = st.columns(len(mood_options))
     for i, (mood_key, mood_label) in enumerate(mood_options.items()):
