@@ -224,9 +224,9 @@ if st.session_state.script:
 
                 # 2) 언어별 보이스 매핑 (ElevenLabs voice_id)
                 voice_map = assign_voices(speakers, st.session_state.selected_language)
-                st.write("#### 🎤 목소리 배정 결과 (ElevenLabs)")
-                for spk, vid in voice_map.items():
-                    st.write(f"**{spk}** → **{vid}**")
+                # st.write("#### 🎤 목소리 배정 결과 (ElevenLabs)")
+                # for spk, vid in voice_map.items():
+                #     st.write(f"**{spk}** → **{vid}**")
 
                 # 3) 분위기 프리셋 → ElevenLabs voice_settings
                 settings = get_voice_settings_for_mood(st.session_state.podcast_mood)
