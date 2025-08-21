@@ -34,6 +34,8 @@ def _get_my_voice_ids():
 MY_VOICE_IDS = _get_my_voice_ids()  # 시작 시 1회 로드
 FALLBACK_VOICE_ID = os.getenv("ELEVEN_FALLBACK_VOICE_ID", "")  
 
+
+
 # KINDS API 키
 KINDS_API_KEY = "6baa0f25-4695-4a66-aff8-4389931c6521"
 # 뉴스 검색 API URL (OpenAPI_사용자치침서_V1.5.pdf 6페이지 참조)
@@ -295,7 +297,9 @@ def parse_script(script_text):
         pattern = re.compile(r"\*\*(.*?):\*\*\s*(.*)")
         matches = pattern.findall(script_wo_headers)  # ← 핵심 포인트 2: script_text → script_wo_headers
 
-        # 3) **이름**: 내용
+
+        # ✅ 추가: **...**: 형식 (콜론이 볼드 밖)
+        
         if not matches:
             pattern_outside = re.compile(r"\*\*(.*?)\*\*:\s*(.*)")
             matches = pattern_outside.findall(script_wo_headers)  # ← 동일하게 교체
@@ -510,7 +514,6 @@ def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     # 수정된 부분: AudioSegment 객체를 바로 반환
     # return final_podcast
 
-
     
 def generate_elevenlabs_speech(
     text: str,
@@ -617,3 +620,4 @@ def generate_audio_segments_elevenlabs(
 
     if progress_bar: progress_bar.empty()
     return audio_segments
+
