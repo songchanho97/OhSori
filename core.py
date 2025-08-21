@@ -32,7 +32,7 @@ def _get_my_voice_ids():
         return set()
 
 MY_VOICE_IDS = _get_my_voice_ids()  # 시작 시 1회 로드
-FALLBACK_VOICE_ID = os.getenv("ELEVEN_FALLBACK_VOICE_ID", "")  
+FALLBACK_VOICE_ID = os.getenv("ELEVEN_FALLBACK_VOICE_ID", "")
 
 
 
@@ -299,7 +299,7 @@ def parse_script(script_text):
 
 
         # ✅ 추가: **...**: 형식 (콜론이 볼드 밖)
-        
+
         if not matches:
             pattern_outside = re.compile(r"\*\*(.*?)\*\*:\s*(.*)")
             matches = pattern_outside.findall(script_wo_headers)  # ← 동일하게 교체
@@ -514,7 +514,7 @@ def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
     # 수정된 부분: AudioSegment 객체를 바로 반환
     # return final_podcast
 
-    
+
 def generate_elevenlabs_speech(
     text: str,
     voice_id: str | None = None,
