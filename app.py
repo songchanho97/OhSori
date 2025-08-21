@@ -42,16 +42,25 @@ from core import (
     run_writer_agent,
     parse_script,
     assign_voices,
-    generate_audio_segments,
+    #generate_audio_segments,
     process_podcast_audio,
     fetch_news_articles,
+    generate_audio_segments_elevenlabs,  # ⬅️ 추가
+    get_voice_settings_for_mood,          # ✅ 분위기 → voice_settings
 )
 
-load_dotenv(dotenv_path=".env")
+from dotenv import load_dotenv, find_dotenv
+load_dotenv(find_dotenv(), override=True)
+
+
 LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 
 
 st.set_page_config(page_title="🎤 AI 뉴스 팟캐스트 스튜디오", layout="wide")
+if not (os.getenv("ELEVENLABS_API_KEY") or st.secrets.get("ELEVENLABS_API_KEY")):
+    st.warning("ELEVENLABS_API_KEY가 설정되지 않았습니다. .env 또는 .streamlit/secrets.toml에 추가하세요.")
+    # 키 없으면 아예 진행 막고 싶으면 ↓ 주석 해제
+    # st.stop()
 st.title("🎤 AI 뉴스 팟캐스트 스튜디오")
 st.markdown(
     "관심 있는 뉴스 기사를 검색하고, AI가 자동으로 대본을 작성하여 팟캐스트 음성까지 생성해 드립니다."
@@ -139,8 +148,8 @@ with MainTab:
                 ad_area = st.container()
 
                 # 2) 광고 배너
-                # 파일은 저장소에: OhSori/static/media/adv.mp4
-                data_url = make_video_data_url("static/media/adv.mp4")
+                # 파일은 저장소에: OhSori/static/ads/adv.mp4
+                data_url = make_video_data_url("static/ads/adv.mp4")
 
                 ad_html = render_ad_video(
                     title="실종아동 찾기 · 112 신고",
@@ -191,54 +200,143 @@ with MainTab:
                 except Exception as e:
                     st.error(f"대본 생성 중 오류: {e}")
 
+   
+# --- 7. 음성 생성 섹션 ---
+if st.session_state.script:
+    st.subheader("🎉 생성된 팟캐스트 대본")
+    st.text_area("대본", st.session_state.script, height=300)
+
+    if st.button("🎧 이 대본으로 음성 생성하기", use_container_width=True, type="primary"):
+        with st.spinner("음성을 생성하고 BGM을 편집하고 있습니다... 잠시만 기다려주세요."):
+            try:
+                # 1) 대본 파싱
+                parsed_lines, speakers = parse_script(st.session_state.script)
+                if not speakers:
+                    st.error("대본에서 화자를 찾을 수 없습니다. (예: **이름:** 형식)")
+                    st.stop()
+
+                # 2) 언어별 보이스 매핑 (ElevenLabs voice_id)
+                voice_map = assign_voices(speakers, st.session_state.selected_language)
+                st.write("#### 🎤 목소리 배정 결과 (ElevenLabs)")
+                for spk, vid in voice_map.items():
+                    st.write(f"**{spk}** → **{vid}**")
+
+                # 3) 분위기 프리셋 → ElevenLabs voice_settings
+                settings = get_voice_settings_for_mood(st.session_state.podcast_mood)
+
+                # 4) ElevenLabs로 음성 조각 생성
+                audio_segments = generate_audio_segments_elevenlabs(
+                    parsed_lines,
+                    eleven_voice_map=voice_map,
+                    model_id=os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
+                    voice_settings=settings,
+                )
+                if not audio_segments:
+                    st.error("ElevenLabs 음성 생성에 실패했습니다. 로그를 확인해주세요.")
+                    st.stop()
+
+                # 5) BGM 결합 및 출력
+                final_podcast_io = process_podcast_audio(audio_segments, "mp3.mp3")
+                st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
+                st.audio(final_podcast_io, format="audio/mp3")
+                st.download_button(
+                    "📥 MP3 파일 다운로드",
+                    final_podcast_io,
+                    file_name="podcast_with_intro.mp3",
+                    mime="audio/mpeg",
+                )
+            except Exception as e:
+                st.error(f"음성 생성 또는 후반 작업 중 오류: {e}")
+
+
+
+# if st.session_state.script:
+#     st.subheader("🎉 생성된 팟캐스트 대본")
+#     st.text_area("대본", st.session_state.script, height=300)
+
+#     if st.button("🎧 이 대본으로 음성 생성하기", use_container_width=True, type="primary"):
+#         with st.spinner("음성을 생성하고 BGM을 편집하고 있습니다... 잠시만 기다려주세요."):
+#             try:
+#                 # 1) 대본 파싱
+#                 parsed_lines, speakers = parse_script(st.session_state.script)
+#                 if not speakers:
+#                     st.error("대본에서 화자를 찾을 수 없습니다. 대본 형식을 확인해주세요. (예: **이름:**)")
+#                     st.stop()
+
+#                 # 2) 한국어 전용 보이스 풀 (호스트 고정 + 나머지 랜덤)
+#                 HOST_NAME = "Alex"  # 대본에 Host/진행자 대신 Alex를 쓰는 현재 패턴
+#                 HOST_VOICE_ID = "ZJCNdZEjYwkOElxugmW2"  # 혁이(남) - 고정
+
+#                 korean_voice_pool = [
+#                     "ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
+#                     "uyVNoMrnUku1dZyVEXwD",  # 김안나(여)
+#                     "1W00IGEmNmwmsDeYy7ag",  # kkc(남)
+#                 ]
+
+#                 import random
+
+#                 # 2-1) 호스트/게스트 분리
+#                 host_speakers = [s for s in speakers if s.strip() in [HOST_NAME, "Host", "진행자"]]
+#                 guest_speakers = [s for s in speakers if s not in host_speakers]
+
+#                 # 2-2) 맵 초기화 + 호스트 고정 배정
+#                 eleven_voice_map = {}
+#                 for h in host_speakers:
+#                     eleven_voice_map[h] = HOST_VOICE_ID
+
+#                 # 2-3) 게스트 랜덤 배정 (가능하면 중복 없이, 부족하면 섞어서 순환)
+#                 guest_pool = [v for v in korean_voice_pool if v != HOST_VOICE_ID] or korean_voice_pool
+
+#                 if len(guest_speakers) <= len(guest_pool):
+#                     assigned = random.sample(guest_pool, len(guest_speakers))  # 중복 없이
+#                 else:
+#                     reps = (len(guest_speakers) + len(guest_pool) - 1) // len(guest_pool)
+#                     extended = (guest_pool * reps)[:len(guest_speakers)]
+#                     random.shuffle(extended)
+#                     assigned = extended
+
+#                 eleven_voice_map.update({spk: assigned[i] for i, spk in enumerate(guest_speakers)})
+
+#                 # 결과 표시 (중복 출력 방지: 이 블록만 남겨둬)
+#                 st.write("#### 🎤 목소리 배정 결과 (ElevenLabs)")
+#                 for spk, v in eleven_voice_map.items():
+#                     st.write(f"**{spk}** → **{v}**")
+
+#                 # 3) ElevenLabs로 음성 생성
+#                 # st.write("#### 🎧 ElevenLabs로 음성 조각 생성 중...")
+#                 # audio_segments = generate_audio_segments_elevenlabs(
+#                 #     parsed_lines,
+#                 #     eleven_voice_map=eleven_voice_map,
+#                 #     model_id=os.getenv("ELEVENLABS_MODEL_ID", "eleven_multilingual_v2"),
+#                 # )
+#                 # if not audio_segments:
+#                 #     st.error("ElevenLabs 음성 생성에 실패했습니다. 로그 메시지를 확인해주세요.")
+#                 #     st.stop()
+
+#                 # st.write(f"총 {len(audio_segments)}개의 음성 조각을 생성했습니다.")
+
+#             #     # 4) BGM 결합
+#             #     st.write("#### 🎶 BGM 편집 및 최종 결합 중...")
+#             #     final_podcast_io = process_podcast_audio(audio_segments, "mp3.mp3")
+
+#             #     # 5) 재생/다운로드
+#             #     st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
+#             #     st.audio(final_podcast_io, format="audio/mp3")
+#             #     st.download_button(
+#             #         "📥 MP3 파일 다운로드",
+#             #         final_podcast_io,
+#             #         file_name="podcast_with_intro.mp3",
+#             #         mime="audio/mpeg",
+#             #     )
+
+#             except Exception as e:
+#                 st.error(f"음성 생성 또는 후반 작업 중 오류: {e}")
+=======
     # --- 7. 음성 생성 섹션 ---
     if st.session_state.script:
         st.subheader("🎉 생성된 팟캐스트 대본")
         st.text_area("대본", st.session_state.script, height=300)
 
-        if st.button(
-            "🎧 이 대본으로 음성 생성하기", use_container_width=True, type="primary"
-        ):
-            with st.spinner(
-                "음성을 생성하고 BGM을 편집하고 있습니다... 잠시만 기다려주세요."
-            ):
-                try:
-                    parsed_lines, speakers = parse_script(st.session_state.script)
-                    if not speakers:
-                        st.error(
-                            "대본에서 화자를 찾을 수 없습니다. 대본 형식을 확인해주세요. (예: **이름:**)"
-                        )
-                    else:
-                        voice_map = assign_voices(
-                            speakers, st.session_state.selected_language
-                        )
-                        st.write("#### 🎤 목소리 배정 결과")
-                        for speaker, voice in voice_map.items():
-                            st.write(f"**{speaker}** → **{voice}**")
-
-                        st.write("#### 🎧 음성 조각 생성 중...")
-                        audio_segments = generate_audio_segments(
-                            parsed_lines, voice_map, speakers
-                        )
-                        st.write(
-                            f"총 {len(audio_segments)}개의 음성 조각을 생성했습니다."
-                        )
-
-                        st.write("#### 🎶 BGM 편집 및 최종 결합 중...")
-                        final_podcast_io = process_podcast_audio(
-                            audio_segments, "mp3.mp3"
-                        )
-
-                        st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
-                        st.audio(final_podcast_io, format="audio/mp3")
-                        st.download_button(
-                            "📥 MP3 파일 다운로드",
-                            final_podcast_io,
-                            file_name="podcast_with_intro.mp3",
-                            mime="audio/mpeg",
-                        )
-                except Exception as e:
-                    st.error(f"음성 생성 또는 후반 작업 중 오류: {e}")
 
 
 with OptionsTab:
