@@ -14,6 +14,8 @@ import requests
 from datetime import datetime, timedelta
 from elevenlabs.client import ElevenLabs  # NEW
 from itertools import cycle
+import imageio_ffmpeg
+AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
 
 
 from dotenv import load_dotenv, find_dotenv
