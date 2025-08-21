@@ -42,14 +42,15 @@ from core import (
     run_writer_agent,
     parse_script,
     assign_voices,
-    #generate_audio_segments,
+    # generate_audio_segments,
     process_podcast_audio,
     fetch_news_articles,
     generate_audio_segments_elevenlabs,  # ⬅️ 추가
-    get_voice_settings_for_mood,          # ✅ 분위기 → voice_settings
+    get_voice_settings_for_mood,  # ✅ 분위기 → voice_settings
 )
 
 from dotenv import load_dotenv, find_dotenv
+
 load_dotenv(find_dotenv(), override=True)
 
 
@@ -58,7 +59,9 @@ LANGSMITH_API_KEY = os.getenv("LANGSMITH_API_KEY")
 
 st.set_page_config(page_title="🎤 AI 뉴스 팟캐스트 스튜디오", layout="wide")
 if not (os.getenv("ELEVENLABS_API_KEY") or st.secrets.get("ELEVENLABS_API_KEY")):
-    st.warning("ELEVENLABS_API_KEY가 설정되지 않았습니다. .env 또는 .streamlit/secrets.toml에 추가하세요.")
+    st.warning(
+        "ELEVENLABS_API_KEY가 설정되지 않았습니다. .env 또는 .streamlit/secrets.toml에 추가하세요."
+    )
     # 키 없으면 아예 진행 막고 싶으면 ↓ 주석 해제
     # st.stop()
 st.title("🎤 AI 뉴스 팟캐스트 스튜디오")
@@ -200,14 +203,18 @@ with MainTab:
                 except Exception as e:
                     st.error(f"대본 생성 중 오류: {e}")
 
-   
+
 # --- 7. 음성 생성 섹션 ---
 if st.session_state.script:
     st.subheader("🎉 생성된 팟캐스트 대본")
     st.text_area("대본", st.session_state.script, height=300)
 
-    if st.button("🎧 이 대본으로 음성 생성하기", use_container_width=True, type="primary"):
-        with st.spinner("음성을 생성하고 BGM을 편집하고 있습니다... 잠시만 기다려주세요."):
+    if st.button(
+        "🎧 이 대본으로 음성 생성하기", use_container_width=True, type="primary"
+    ):
+        with st.spinner(
+            "음성을 생성하고 BGM을 편집하고 있습니다... 잠시만 기다려주세요."
+        ):
             try:
                 # 1) 대본 파싱
                 parsed_lines, speakers = parse_script(st.session_state.script)
@@ -232,7 +239,9 @@ if st.session_state.script:
                     voice_settings=settings,
                 )
                 if not audio_segments:
-                    st.error("ElevenLabs 음성 생성에 실패했습니다. 로그를 확인해주세요.")
+                    st.error(
+                        "ElevenLabs 음성 생성에 실패했습니다. 로그를 확인해주세요."
+                    )
                     st.stop()
 
                 # 5) BGM 결합 및 출력
@@ -247,7 +256,6 @@ if st.session_state.script:
                 )
             except Exception as e:
                 st.error(f"음성 생성 또는 후반 작업 중 오류: {e}")
-
 
 
 # if st.session_state.script:
@@ -331,12 +339,6 @@ if st.session_state.script:
 
 #             except Exception as e:
 #                 st.error(f"음성 생성 또는 후반 작업 중 오류: {e}")
-=======
-    # --- 7. 음성 생성 섹션 ---
-    if st.session_state.script:
-        st.subheader("🎉 생성된 팟캐스트 대본")
-        st.text_area("대본", st.session_state.script, height=300)
-
 
 
 with OptionsTab:
