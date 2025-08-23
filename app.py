@@ -152,7 +152,7 @@ with MainTab:
 
                 # 2) 광고 배너
                 # 파일은 저장소에: OhSori/static/ads/adv.mp4
-                data_url = make_video_data_url("static/ads/adv.mp4")
+                data_url = make_video_data_url("static/video/adv.mp4")
 
                 ad_html = render_ad_video(
                     title="실종아동 찾기 · 112 신고",
@@ -251,7 +251,7 @@ if st.session_state.script:
                     "전문적인": "static/bgm/atmos_professional.mp3",
                 }
                 # 선택된 분위기에 맞는 BGM을 찾고, 없으면 기본값 사용
-                selected_bgm = mood_bgm_map.get(st.session_state.podcast_mood) 
+                selected_bgm = mood_bgm_map.get(st.session_state.podcast_mood)
                 final_podcast_io = process_podcast_audio(audio_segments, selected_bgm)
                 st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
                 st.audio(final_podcast_io, format="audio/mp3")

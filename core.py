@@ -16,15 +16,19 @@ from elevenlabs.client import ElevenLabs  # NEW
 from itertools import cycle
 
 import imageio_ffmpeg
+
 AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
 
 
 from dotenv import load_dotenv, find_dotenv
+
 load_dotenv(find_dotenv(), override=True)
 
 
 def _get_my_voice_ids():
-    api_key = (st.secrets.get("ELEVENLABS_API_KEY") if "st" in globals() else None) or os.getenv("ELEVENLABS_API_KEY")
+    api_key = (
+        st.secrets.get("ELEVENLABS_API_KEY") if "st" in globals() else None
+    ) or os.getenv("ELEVENLABS_API_KEY")
     if not api_key:
         return set()
     try:
@@ -34,9 +38,9 @@ def _get_my_voice_ids():
     except Exception:
         return set()
 
+
 MY_VOICE_IDS = _get_my_voice_ids()  # 시작 시 1회 로드
 FALLBACK_VOICE_ID = os.getenv("ELEVEN_FALLBACK_VOICE_ID", "")
-
 
 
 # KINDS API 키
@@ -78,8 +82,8 @@ def fetch_news_articles(query: str, category: str, num_articles: int = 6) -> str
             "provider": [],
             "category": [category_code] if category_code else [],
             "sort": [
-                {"_score": "desc"}, # 1순위: 정확도 높은 순
-                {"date": "desc"}    # 2순위: 최신순
+                {"_score": "desc"},  # 1순위: 정확도 높은 순
+                {"date": "desc"},  # 2순위: 최신순
             ],
             "return_from": 0,
             "return_size": num_articles,
@@ -207,15 +211,40 @@ def get_voice_settings_for_mood(mood: str):
     값 범위는 보통 0.0~1.0 (style은 일부 보이스에서만 의미 있을 수 있음)
     """
     if mood == "차분한":
-        return {"stability": 0.75, "similarity_boost": 0.7, "style": 0.1, "use_speaker_boost": True}
+        return {
+            "stability": 0.75,
+            "similarity_boost": 0.7,
+            "style": 0.1,
+            "use_speaker_boost": True,
+        }
     elif mood == "신나는":
-        return {"stability": 0.45, "similarity_boost": 0.85, "style": 0.7, "use_speaker_boost": True}
+        return {
+            "stability": 0.45,
+            "similarity_boost": 0.85,
+            "style": 0.7,
+            "use_speaker_boost": True,
+        }
     elif mood == "전문적인":
-        return {"stability": 0.85, "similarity_boost": 0.6, "style": 0.2, "use_speaker_boost": True}
+        return {
+            "stability": 0.85,
+            "similarity_boost": 0.6,
+            "style": 0.2,
+            "use_speaker_boost": True,
+        }
     elif mood == "유머러스한":
-        return {"stability": 0.5, "similarity_boost": 0.8, "style": 0.6, "use_speaker_boost": True}
+        return {
+            "stability": 0.5,
+            "similarity_boost": 0.8,
+            "style": 0.6,
+            "use_speaker_boost": True,
+        }
     else:  # 기본
-        return {"stability": 0.6, "similarity_boost": 0.7, "style": 0.3, "use_speaker_boost": True}
+        return {
+            "stability": 0.6,
+            "similarity_boost": 0.7,
+            "style": 0.3,
+            "use_speaker_boost": True,
+        }
 
 
 # >>clova에서만 해당 되는 거니 수정 해야함
@@ -291,15 +320,16 @@ def parse_script(script_text):
         parsed_lines = []
 
         # 1) 헤더(예: **[본론]**, [본론]) → 무시
-        p_header = re.compile(r'^\s*(\*\*)?\[\s*.+?\s*\](\*\*)?\s*$')
+        p_header = re.compile(r"^\s*(\*\*)?\[\s*.+?\s*\](\*\*)?\s*$")
 
         # ▼▼ 헤더 제거한 텍스트로 재구성 (핵심 포인트 1) ▼▼
         script_wo_headers = "\n".join(ln for ln in lines if not p_header.match(ln))
 
         # 2) **이름:** 내용
         pattern = re.compile(r"\*\*(.*?):\*\*\s*(.*)")
-        matches = pattern.findall(script_wo_headers)  # ← 핵심 포인트 2: script_text → script_wo_headers
-
+        matches = pattern.findall(
+            script_wo_headers
+        )  # ← 핵심 포인트 2: script_text → script_wo_headers
 
         # ✅ 추가: **...**: 형식 (콜론이 볼드 밖)
 
@@ -307,8 +337,10 @@ def parse_script(script_text):
             pattern_outside = re.compile(r"\*\*(.*?)\*\*:\s*(.*)")
             matches = pattern_outside.findall(script_wo_headers)  # ← 동일하게 교체
 
-        parsed_lines = [{"speaker": speaker.strip(), "text": text.strip()}
-                        for speaker, text in matches]
+        parsed_lines = [
+            {"speaker": speaker.strip(), "text": text.strip()}
+            for speaker, text in matches
+        ]
 
         # 4) 기본 형식 "이름: 내용" (fallback)
         if not parsed_lines:
@@ -321,7 +353,9 @@ def parse_script(script_text):
                     # 혹시 헤더 패턴이 끼어들면 건너뜀(이론상 여긴 안 옴)
                     if p_header.match(line):
                         continue
-                    parsed_lines.append({"speaker": speaker.strip(), "text": text.strip()})
+                    parsed_lines.append(
+                        {"speaker": speaker.strip(), "text": text.strip()}
+                    )
 
         speakers = sorted(list(set([line["speaker"] for line in parsed_lines])))
         return parsed_lines, speakers
@@ -336,7 +370,7 @@ ELEVEN_VOICE_POOLS = {
     "한국어": {
         "host": "ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
         "pool": [
-            #"ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
+            # "ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
             "uyVNoMrnUku1dZyVEXwD",  # 김안나(여)
             "1W00IGEmNmwmsDeYy7ag",  # kkc(남)
         ],
@@ -344,7 +378,7 @@ ELEVEN_VOICE_POOLS = {
     "영어": {
         "host": "RexqLjNzkCjWogguKyff",  # bradely(남)
         "pool": [
-            #"RexqLjNzkCjWogguKyff",  # bradely(남)
+            # "RexqLjNzkCjWogguKyff",  # bradely(남)
             "iCrDUkL56s3C8sCRl7wb",  # hope(여)
             "L1aJrPa7pLJEyYlh3Ilq",  # oliver(남)
         ],
@@ -352,7 +386,7 @@ ELEVEN_VOICE_POOLS = {
     "일본어": {
         "host": "sRYzP8TwEiiqAWebdYPJ",  # Voiceactor(남)
         "pool": [
-            #"sRYzP8TwEiiqAWebdYPJ",  # bradely(남)
+            # "sRYzP8TwEiiqAWebdYPJ",  # bradely(남)
             "hBWDuZMNs32sP5dKzMuc",  # Ken(여)
             "WQz3clzUdMqvBf0jswZQ",  # Shizuka(여)
         ],
@@ -360,7 +394,7 @@ ELEVEN_VOICE_POOLS = {
     "중국어": {
         "host": "fQj4gJSexpu8RDE2Ii5m",  # Yu(남)
         "pool": [
-            #"fQj4gJSexpu8RDE2Ii5m",  # Yu(남)
+            # "fQj4gJSexpu8RDE2Ii5m",  # Yu(남)
             "hkfHEbBvdQFNX4uWHqR",  # Stacy(여)
             "WuLq5z7nEcrhppO0ZQJw",  # Martin(남) 아아 피곤합니다아
         ],
@@ -372,6 +406,7 @@ def _norm_name(s: str) -> str:
     # '**이름:**' 같은 형식 대비해서 기호/공백 제거
     return s.strip().strip("*").strip(":").strip()
 
+
 def assign_voices(speakers, language: str):
     """
     언어에 맞춰 화자에게 ElevenLabs voice_id를 배정.
@@ -382,7 +417,11 @@ def assign_voices(speakers, language: str):
     conf = ELEVEN_VOICE_POOLS.get(language, ELEVEN_VOICE_POOLS["한국어"])
     host_voice = conf["host"]
     # host를 pool에서 제거(중복 배정 방지). 비면 host만이라도 사용
-    pool = [v for v in conf.get("pool", []) if v != host_voice] or conf.get("pool", []) or [host_voice]
+    pool = (
+        [v for v in conf.get("pool", []) if v != host_voice]
+        or conf.get("pool", [])
+        or [host_voice]
+    )
 
     host_keywords = {"Host", "진행자", "Alex", "主持人"}
 
@@ -404,7 +443,10 @@ def assign_voices(speakers, language: str):
 
     return voice_map
 
-def generate_audio_segments(parsed_lines, voice_map, mood, model_id=None, voice_settings=None):  # 1. mood 인자 받기
+
+def generate_audio_segments(
+    parsed_lines, voice_map, mood, model_id=None, voice_settings=None
+):  # 1. mood 인자 받기
     """
     파싱된 대본 라인들을 순회하며 각 라인에 대한 음성 조각(AudioSegment)을 생성합니다.
     팟캐스트 분위기(mood)에 맞는 스타일을 적용합니다.
@@ -419,8 +461,12 @@ def generate_audio_segments(parsed_lines, voice_map, mood, model_id=None, voice_
         try:
             settings = get_voice_settings_for_mood(mood)
         except NameError:
-            settings = {"stability": 0.6, "similarity_boost": 0.7,
-                        "style": 0.3, "use_speaker_boost": True}
+            settings = {
+                "stability": 0.6,
+                "similarity_boost": 0.7,
+                "style": 0.3,
+                "use_speaker_boost": True,
+            }
     else:
         settings = voice_settings
 
@@ -433,8 +479,10 @@ def generate_audio_segments(parsed_lines, voice_map, mood, model_id=None, voice_
     for i, line in enumerate(parsed_lines):
         speaker = line["speaker"]
         cleaned_text = clean_text_for_tts(line["text"])
-        progress_bar.progress((i + 1) / max(total, 1),
-                              text=f"'{speaker}'의 대사 생성 중... ({i+1}/{total})")
+        progress_bar.progress(
+            (i + 1) / max(total, 1),
+            text=f"'{speaker}'의 대사 생성 중... ({i+1}/{total})",
+        )
 
         if not cleaned_text:
             continue
@@ -446,7 +494,7 @@ def generate_audio_segments(parsed_lines, voice_map, mood, model_id=None, voice_
             voice_id = next(iter(voice_map.values()))
 
         # 안정성 위해 1000자 단위 분할
-        chunks = [cleaned_text[j:j+1000] for j in range(0, len(cleaned_text), 1000)]
+        chunks = [cleaned_text[j : j + 1000] for j in range(0, len(cleaned_text), 1000)]
 
         for chunk in chunks:
             # ▼ CLOVA 호출 삭제: generate_clova_speech(...)  ❌
@@ -531,27 +579,40 @@ def generate_elevenlabs_speech(
     """
     try:
         # .env 또는 Streamlit secrets에서 읽음
-        api_key = (st.secrets.get("ELEVENLABS_API_KEY")
-                   if "st" in globals() else None) or os.getenv("ELEVENLABS_API_KEY")
+        api_key = (
+            st.secrets.get("ELEVENLABS_API_KEY") if "st" in globals() else None
+        ) or os.getenv("ELEVENLABS_API_KEY")
         if not api_key:
             return None, "ELEVENLABS_API_KEY가 설정되어 있지 않습니다."
 
         client = ElevenLabs(api_key=api_key)
 
         # 기본값: .env에 없으면 문서 예시값 사용
-        voice_id = voice_id or os.getenv("ELEVENLABS_VOICE_ID") or "JBFqnCBsd6RMkjVDRZzb"
-        model_id = model_id or os.getenv("ELEVENLABS_MODEL_ID") or "eleven_multilingual_v2"
+        voice_id = (
+            voice_id or os.getenv("ELEVENLABS_VOICE_ID") or "JBFqnCBsd6RMkjVDRZzb"
+        )
+        model_id = (
+            model_id or os.getenv("ELEVENLABS_MODEL_ID") or "eleven_multilingual_v2"
+        )
 
         audio = client.text_to_speech.convert(
             text=text,
             voice_id=voice_id,
             model_id=model_id,
             output_format=output_format,
-            voice_settings=voice_settings or {
-            "stability": 0.6, "similarity_boost": 0.7, "style": 0.3, "use_speaker_boost": True
-        },
+            voice_settings=voice_settings
+            or {
+                "stability": 0.6,
+                "similarity_boost": 0.7,
+                "style": 0.3,
+                "use_speaker_boost": True,
+            },
         )
-        audio_bytes = b"".join(audio) if hasattr(audio, "__iter__") and not isinstance(audio, (bytes, bytearray)) else audio
+        audio_bytes = (
+            b"".join(audio)
+            if hasattr(audio, "__iter__") and not isinstance(audio, (bytes, bytearray))
+            else audio
+        )
         return audio_bytes, None
 
         # SDK가 generator를 줄 수도 있어 안전하게 통합
@@ -564,27 +625,41 @@ def generate_elevenlabs_speech(
     except Exception as e:
         msg = str(e)
         # 🔽 슬롯 초과/보이스 미보유 시 폴백 보이스로 1회 재시도
-        if ("voice_limit_reached" in msg or "voice_not_found" in msg) and FALLBACK_VOICE_ID:
+        if (
+            "voice_limit_reached" in msg or "voice_not_found" in msg
+        ) and FALLBACK_VOICE_ID:
             try:
                 audio = client.text_to_speech.convert(
                     text=text,
                     voice_id=FALLBACK_VOICE_ID,
-                    model_id=model_id or os.getenv("ELEVENLABS_MODEL_ID") or "eleven_multilingual_v2",
+                    model_id=model_id
+                    or os.getenv("ELEVENLABS_MODEL_ID")
+                    or "eleven_multilingual_v2",
                     output_format=output_format,
-                    voice_settings=voice_settings or {
-                        "stability": 0.6, "similarity_boost": 0.7, "style": 0.3, "use_speaker_boost": True
+                    voice_settings=voice_settings
+                    or {
+                        "stability": 0.6,
+                        "similarity_boost": 0.7,
+                        "style": 0.3,
+                        "use_speaker_boost": True,
                     },
                 )
-                audio_bytes = b"".join(audio) if hasattr(audio, "__iter__") and not isinstance(audio, (bytes, bytearray)) else audio
+                audio_bytes = (
+                    b"".join(audio)
+                    if hasattr(audio, "__iter__")
+                    and not isinstance(audio, (bytes, bytearray))
+                    else audio
+                )
                 return audio_bytes, None
             except Exception as e2:
                 return None, f"ElevenLabs 폴백 실패: {e2}"
         # 기본 에러 리턴
         return None, f"ElevenLabs API 요청 오류: {e}"
 
+
 def generate_audio_segments_elevenlabs(
     parsed_lines,
-    eleven_voice_map: dict | None = None,   # speaker -> voice_id 매핑
+    eleven_voice_map: dict | None = None,  # speaker -> voice_id 매핑
     model_id: str | None = None,
     voice_settings: dict | None = None,
 ):
@@ -593,7 +668,9 @@ def generate_audio_segments_elevenlabs(
     반환: [AudioSegment] | None
     """
     audio_segments = []
-    progress_bar = st.progress(0, "ElevenLabs 음성 생성 시작...") if "st" in globals() else None
+    progress_bar = (
+        st.progress(0, "ElevenLabs 음성 생성 시작...") if "st" in globals() else None
+    )
 
     for i, line in enumerate(parsed_lines):
         speaker = line.get("speaker", "Narrator")
@@ -602,25 +679,35 @@ def generate_audio_segments_elevenlabs(
             continue
 
         # 긴 문장 안정화를 위해 1000자 단위로 분할
-        chunks = [text[j:j+1000] for j in range(0, len(text), 1000)]
+        chunks = [text[j : j + 1000] for j in range(0, len(text), 1000)]
         if progress_bar:
-            progress_bar.progress((i + 1) / max(1, len(parsed_lines)),
-                                  text=f"'{speaker}' 생성 중... ({i+1}/{len(parsed_lines)})")
+            progress_bar.progress(
+                (i + 1) / max(1, len(parsed_lines)),
+                text=f"'{speaker}' 생성 중... ({i+1}/{len(parsed_lines)})",
+            )
 
         # 스피커별 voice_id 매핑(없으면 .env 기본 사용)
         voice_id = (eleven_voice_map or {}).get(speaker)
 
         for c in chunks:
             audio_bytes, err = generate_elevenlabs_speech(
-                text=c, voice_id=voice_id, model_id=model_id, voice_settings=voice_settings
+                text=c,
+                voice_id=voice_id,
+                model_id=model_id,
+                voice_settings=voice_settings,
             )
             if err:
-                if progress_bar: progress_bar.empty()
-                st.error(f"'{speaker}' 음성 생성 오류: {err}") if "st" in globals() else None
+                if progress_bar:
+                    progress_bar.empty()
+                (
+                    st.error(f"'{speaker}' 음성 생성 오류: {err}")
+                    if "st" in globals()
+                    else None
+                )
                 return None
             seg = AudioSegment.from_file(io.BytesIO(audio_bytes), format="mp3")
             audio_segments.append(seg)
 
-    if progress_bar: progress_bar.empty()
+    if progress_bar:
+        progress_bar.empty()
     return audio_segments
-
