@@ -245,7 +245,14 @@ if st.session_state.script:
                     st.stop()
 
                 # 5) BGM 결합 및 출력
-                final_podcast_io = process_podcast_audio(audio_segments, "mp3.mp3")
+                mood_bgm_map = {
+                    "차분한": "static/bgm/atmos_demure.mp3",
+                    "신나는": "static/bgm/atmos_joyful.mp3",
+                    "전문적인": "static/bgm/atmos_professional.mp3",
+                }
+                # 선택된 분위기에 맞는 BGM을 찾고, 없으면 기본값 사용
+                selected_bgm = mood_bgm_map.get(st.session_state.podcast_mood) 
+                final_podcast_io = process_podcast_audio(audio_segments, selected_bgm)
                 st.success("🎉 팟캐스트 음성 생성이 완료되었습니다!")
                 st.audio(final_podcast_io, format="audio/mp3")
                 st.download_button(

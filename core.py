@@ -15,6 +15,9 @@ from datetime import datetime, timedelta
 from elevenlabs.client import ElevenLabs  # NEW
 from itertools import cycle
 
+import imageio_ffmpeg
+AudioSegment.converter = imageio_ffmpeg.get_ffmpeg_exe()
+
 
 from dotenv import load_dotenv, find_dotenv
 load_dotenv(find_dotenv(), override=True)
@@ -479,7 +482,7 @@ def change_audio_speed(audio_segment, speed=1.0):
 # core.py에 있는 기존 함수를 이렇게 수정합니다.
 
 
-def process_podcast_audio(audio_segments, bgm_file="mp3.mp3"):
+def process_podcast_audio(audio_segments, bgm_file):
     """음성 조각들에 BGM을 입히고 최종 팟캐스트 파일을 생성합니다."""
     # 1. 음성 조각 병합
     pause = AudioSegment.silent(duration=500)
