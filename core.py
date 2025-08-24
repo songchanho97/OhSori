@@ -368,7 +368,7 @@ def parse_script(script_text):
 # 일레븐랩스 보이스 풀 (네가 준 ID 그대로)
 ELEVEN_VOICE_POOLS = {
     "한국어": {
-        "host": "ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
+        "host": "gSIFuVFiNs1RkrhPg3G7",  # 교수(남)
         "pool": [
             # "ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
             "uyVNoMrnUku1dZyVEXwD",  # 김안나(여)
