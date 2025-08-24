@@ -372,7 +372,7 @@ ELEVEN_VOICE_POOLS = {
         "pool": [
             # "ZJCNdZEjYwkOElxugmW2",  # 혁이(남)
             "uyVNoMrnUku1dZyVEXwD",  # 김안나(여)
-            "1W00IGEmNmwmsDeYy7ag",  # kkc(남)
+            "4JJwo477JUAx3HV0T7n7",  # 구요한(남)
         ],
     },
     "영어": {
